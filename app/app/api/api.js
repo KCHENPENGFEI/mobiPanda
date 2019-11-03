@@ -115,7 +115,6 @@ const getPandaSuccessApi = {
             uuid: '',
             createTime: null
         }
-<<<<<<< HEAD
     }
 }
 
@@ -130,15 +129,7 @@ const getCharacterSuccessApi = {
             buddhist: 0.,
             openness: 0.
         }
-=======
->>>>>>> eb8a69a79decebf983f5392601b61b9bc0cf2f92
     }
-}
-
-const httpErrorApi = {
-    code: -1,
-    msg: 'http/https error',
-    data: {error: ''}
 }
 
 const getInBoxesSuccessApi = {
@@ -173,10 +164,7 @@ module.exports = {
     checkIssueSuccessApi,
     pandaListSuccessApi,
     getPandaSuccessApi,
-<<<<<<< HEAD
     getCharacterSuccessApi,
     getInBoxesSuccessApi,
-=======
->>>>>>> eb8a69a79decebf983f5392601b61b9bc0cf2f92
     httpErrorApi
 }

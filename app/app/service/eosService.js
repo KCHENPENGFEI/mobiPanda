@@ -183,6 +183,7 @@ class EosService extends Service {
         });
         return resp.rows;
     }
+
 }
 
 module.exports = EosService;

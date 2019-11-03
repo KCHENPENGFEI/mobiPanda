@@ -5,6 +5,7 @@ const ecc = require('eosjs-ecc');
 const Api = require('../api/api');
 const Utils = require('../utils/utils');
 const serviceConfig = require('../service/config');
+const BN = require('bn.js');
 
 
 class userController extends Controller {
@@ -251,22 +252,12 @@ class userController extends Controller {
                     else if (pandaTable.length === 1) {
                         const pandaUuid = pandaTable[0].uuid;
                         const createTime = pandaTable[0].createtime;
-<<<<<<< HEAD
                         const api = JSON.parse(JSON.stringify(Api.issuePandaAgainSuccessApi));
                         api.data.panda.uuid = pandaUuid;
                         api.data.panda.gene = geneId;
                         api.data.panda.createTime = createTime;
                         this.ctx.body = api;
                         await this.ctx.service.users.increasePandaQuantity(openid, 1, createTime);
-=======
-                        const api = JSON.parse(JSON.stringify(Api.issuePandaSuccessApi));
-                        api.data.panda.uuid = pandaUuid;
-                        api.data.panda.gene = geneId;
-                        const date = createTime;
-                        api.data.panda.createTime = date;
-                        this.ctx.body = api;
-                        await this.ctx.service.users.increasePandaQuantity(openid, 1, date);
->>>>>>> eb8a69a79decebf983f5392601b61b9bc0cf2f92
                     }
                     else {
                         // more than one panda
@@ -351,7 +342,6 @@ class userController extends Controller {
             this.ctx.body = api;
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
-<<<<<<< HEAD
             api.data.error = e.message;
             this.ctx.body = api;
         }
@@ -468,29 +458,20 @@ class userController extends Controller {
             }
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
-=======
->>>>>>> eb8a69a79decebf983f5392601b61b9bc0cf2f92
             api.data.error = e.message;
             this.ctx.body = api;
         }
     }
 
     async test() {
-        let time1 = new Date();
         let msg = this.ctx.request.body;
-        // let answer = msg.answer;
-        // let result = Utils.generateGeneId(answer);
-        let account = msg.account;
-        // this.ctx.body = result.substring(0, 8);
-        //this.ctx.body = String(answer);
-        // this.ctx.body = await this.ctx.service.eosService.checkPanda(account);
-        let privateKey = await ecc.randomKey();
-        let pubKey = ecc.privateToPublic(privateKey);
-        let time2 = new Date();
-        const result = await this.ctx.service.eosService.createNewAccount(account, pubKey);
-        let time3 = new Date();
-        let timestamp = time3.getTime() - time2.getTime();
-        this.ctx.body = timestamp;
+        let uuid = msg.uuid;
+        // const a = new BN(uuid, 16);
+        // this.ctx.body = a.toString(10);
+        const a = new BN(uuid.substring(2), "hex");
+        const b = a.toBuffer("le", 16);
+        const c = new BN(b);
+        this.ctx.body = c.toString();
     }
 }
 
