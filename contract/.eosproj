@@ -1,0 +1,21 @@
+{
+  "main": "src/mobipanda.cpp",
+  "contract": "mobipanda",
+  "include": "",
+  "resource": "",
+  "cdt": "cmd",
+  "output": "",
+  "scripts": {
+    "build": ""
+  },
+  "deploy": {
+    "target": "both",
+    "mainnet": "",
+    "kylin": "",
+    "jungle": "",
+    "local": "mobiuspanda1"
+  },
+  "test": {
+    "npmClient": "npm"
+  }
+}
