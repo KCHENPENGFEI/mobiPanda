@@ -1,7 +1,6 @@
 'use strict';
 
 const Controller = require('egg').Controller;
-const ecc = require('eosjs-ecc');
 const Api = require('../api/api');
 const Utils = require('../utils/utils');
 const serviceConfig = require('../service/config');
@@ -42,21 +41,23 @@ class userController extends Controller {
 
     async issue() {
         let start = new Date();
-        // this.ctx.body = {
-        //     'ccc': 'ccc'
-        // };
-        // this.ctx.body = this.ctx.request.body;
-        // console.log(this.ctx);
-        // console.log(this.ctx.request.body);
         let msg = this.ctx.request.body;
-        let openid = msg.openid;
-        let EOSAccount = msg.EOSAccount;
-        let EOSPublicKey = msg.EOSPublicKey;
-        let answer = msg.answer;
-        // let privateKey = await ecc.randomKey();
-        // let EOSPublicKey = ecc.privateToPublic(privateKey);
+        let openid = msg.openid;                 // user's openid
+        let EOSAccount = msg.EOSAccount;         // user's eos account
+        let EOSPublicKey = msg.EOSPublicKey;     // usre's eos public key
+        let answer = msg.answer;                 // user's answer
         
         try {
+            // check if openid exist
+            const account = await this.ctx.service.users.checkEOSAccount(openid);
+            if (account.length !== 0) {
+                // let e = {message: 'allready registered'};
+                // throw e;
+                const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
+                api.data.error = 'allready registered';
+                this.ctx.body = api;
+                return;
+            }
             // generate user's account
             let time1 = new Date();
             const signupResult = await this.ctx.service.eosService.createNewAccount(EOSAccount, EOSPublicKey);
@@ -398,7 +399,11 @@ class userController extends Controller {
                 let answer = result.answer;
                 const api = Api.commonSuccessApi;
                 this.ctx.body = api;
-                await this.ctx.service.users.saveInBoxes(receiverEOSAccount, senderEOSAccount, uuid, answer);
+                const deleteResult = await this.ctx.service.users.deleteInBoxes(receiverEOSAccount, senderEOSAccount, uuid);
+                if (!deleteResult) {
+                    await this.ctx.service.users.saveInBoxes(receiverEOSAccount, senderEOSAccount, uuid, answer);
+                }
+                await this.ctx.service.users.upgradeTansferInfo(serviceConfig.symbol);
             }
             else {
                 const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
@@ -419,8 +424,8 @@ class userController extends Controller {
             const EOSAccountList = await this.ctx.service.users.checkEOSAccount(openid);
             const EOSAccount = EOSAccountList[0].EOSAccount;
             const checkResult = await this.ctx.service.users.checkInBoxes(EOSAccount);
+            const api = JSON.parse(JSON.stringify(Api.getInBoxesSuccessApi));
             if (checkResult.length !== 0) {
-                const api = JSON.parse(JSON.stringify(Api.getInBoxesSuccessApi));
                 for (let i = 0; i < checkResult.length; i++) {
                     let inBox = checkResult[i];
                     let senderEOSAccount = inBox.senderEOSAccount;
@@ -452,26 +457,35 @@ class userController extends Controller {
                 this.ctx.body = api;
             }
             else {
-                const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
-                api.data.error = 'check result null';
+                // const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
+                // api.data.error = 'check result null';
                 this.ctx.body = api;
             }
         } catch (e) {
-            const api = JSON.parse(JSON.stringify(Api.exceptionApi));
-            api.data.error = e.message;
-            this.ctx.body = api;
+            const exceptionApi = JSON.parse(JSON.stringify(Api.exceptionApi));
+            exceptionApi.data.error = e.message;
+            this.ctx.body = exceptionApi;
         }
     }
 
     async test() {
         let msg = this.ctx.request.body;
+        // let uuid = msg.uuid;
+        // const a = new BN(uuid.substring(2), "hex");
+        // const b = a.toBuffer("le", 16);
+        // const c = new BN(b);
+        // this.ctx.body = c.toString();
+        // let to = msg.to;
+        // let symbol = "MBPD";
+        // let uris = ["panda"];
+        // let memo = "123";
+        // const result = await this.ctx.service.eosService.issuePanda(to, symbol, uris, memo);
+        // this.ctx.body = result;
+        let receiverEOSAccount = msg.receiverEOSAccount;
+        let senderEOSAccount = msg.senderEOSAccount;
         let uuid = msg.uuid;
-        // const a = new BN(uuid, 16);
-        // this.ctx.body = a.toString(10);
-        const a = new BN(uuid.substring(2), "hex");
-        const b = a.toBuffer("le", 16);
-        const c = new BN(b);
-        this.ctx.body = c.toString();
+        const result = await this.service.users.deleteInBoxes(receiverEOSAccount, senderEOSAccount, uuid);
+        this.ctx.body = {result};
     }
 }
 

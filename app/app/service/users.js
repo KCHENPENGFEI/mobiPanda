@@ -2,6 +2,7 @@ const Service = require('egg').Service;
 
 const table = 'tb_pandas';
 const inBoxesTable = 'tb_inBoxes';
+const transferInfoTable = 'tb_transferInfo';
 
 class userService extends Service {
     async login(openid) {
@@ -109,9 +110,25 @@ class userService extends Service {
         return insertSuccess;
     }
 
+    async deleteInBoxes(receiverEOSAccount, senderEOSAccount, uuid) {
+        const deleteResult = await this.app.mysql.delete(inBoxesTable, {
+            uuid: uuid,
+            receiverEOSAccount: senderEOSAccount,
+            senderEOSAccount: receiverEOSAccount
+        });
+        const deleteSuccess = deleteResult.affectedRows === 1;
+        return deleteSuccess;
+    }
+
     async checkAnswerByAccount(EOSAccount) {
         const checkResult = await this.app.mysql.get(table, { EOSAccount: EOSAccount });
         return checkResult;
+    }
+
+    async upgradeTansferInfo(symbol) {
+        const result = await this.app.mysql.query('update tb_transferInfo set record = (record + 1) where symbol = ?', [symbol]);
+        const returnResult = result.affectedRows === 1;
+        return returnResult;
     }
 
     async test(uid) {

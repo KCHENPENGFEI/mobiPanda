@@ -4,6 +4,7 @@ const Controller = require('egg').Controller;
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const wechatApi = require('../service/wechatApiConfig');
 const Api = require('../api/api');
+const ecc = require('eosjs-ecc');
 
 // const httpRequest = new XMLHttpRequest();
 // const httpRequest1 = new XMLHttpRequest();
@@ -108,6 +109,16 @@ class adminController extends Controller {
         }
     }
     
+    async register() {
+        let msg = this.ctx.request.body;
+        let account = msg.account;
+        let priKey = await ecc.randomKey();
+        let pubKey = ecc.privateToPublic(priKey);
+        console.log(priKey);
+        console.log(pubKey);
+        let signupResult = await this.ctx.service.eosService.createNewAccount(account, pubKey);
+        this.ctx.body = signupResult;
+    }
 }
 
 
