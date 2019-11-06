@@ -140,6 +140,24 @@ const getInBoxesSuccessApi = {
     }
 };
 
+const getSignSuccessApi = {
+    code: 0,
+    msg: 'get signature success',
+    data: {
+        nonceStr: '',
+        timestamp: null,
+        signature: ''
+    }
+};
+
+const getSignFailedApi = {
+    code: -1,
+    msg: 'get signature failed',
+    data: {
+        error: ''
+    }
+};
+
 const httpErrorApi = {
     code: -1,
     msg: 'http/https error',
@@ -166,5 +184,7 @@ module.exports = {
     getPandaSuccessApi,
     getCharacterSuccessApi,
     getInBoxesSuccessApi,
+    getSignSuccessApi,
+    getSignFailedApi,
     httpErrorApi
 }

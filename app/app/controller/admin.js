@@ -5,6 +5,7 @@ const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const wechatApi = require('../service/wechatApiConfig');
 const Api = require('../api/api');
 const ecc = require('eosjs-ecc');
+const sha1 = require('js-sha1');
 
 // const httpRequest = new XMLHttpRequest();
 // const httpRequest1 = new XMLHttpRequest();
@@ -106,6 +107,94 @@ class adminController extends Controller {
             const api = JSON.parse(JSON.stringify(Api.httpErrorApi));
             api.data.error = httpRequest.status;
             this.ctx.body = api;
+        }
+    }
+
+    async getSign() {
+        let url = this.ctx.href;
+        let msg = this.ctx.query;
+        let openid = msg.openid;
+        // let at = wechatApi.accessToken;
+        // let jt = wechatApi.jsapiTicket;
+        // let atStartTime = wechatApi.accessTokenTimeStamp;
+        // let jtStartTime = wechatApi.jsapiTicketTimeStamp;
+        // let jtUrl = wechatApi.getJaspiTicketUrl;
+        // let expiresIn = wechatApi.expiresIn;
+        let now = Date.parse(new Date()) / 1000;
+        let nonceStr = Utils.generateRandomPartGeneId(10);
+        let jsapiTicket = await getTicket(now);
+        if (jsapiTicket === '') {
+            const api = JSON.parse(JSON.stringify(Api.getSignFailedApi));
+            api.data.error = 'jsapi ticket null';
+            this.ctx.body = api;
+        }
+        else {
+            let str = 'jsapi_ticket=' + jsapiTicket + '&noncestr=' + nonceStr + '&timestamp=' + now + '&url=' + url;
+            let signature = sha1(str);
+            console.log(signature);
+            const api = JSON.parse(JSON.stringify(Api.getSignSuccessApi));
+            api.data.nonceStr = nonceStr;
+            api.data.timestamp = now;
+            api.data.signature = signature;
+            this.ctx.body = api;
+        }
+    }
+
+    async getTicket(time) {
+        let at = wechatApi.accessToken;
+        let jt = wechatApi.jsapiTicket;
+        let atStartTime = wechatApi.accessTokenTimeStamp;
+        let jtStartTime = wechatApi.jsapiTicketTimeStamp;
+        let jtUrl = wechatApi.getJaspiTicketUrl;
+        let expiresIn = wechatApi.expiresIn;
+        if (time.getHours() === jtStartTime.getHours()) {
+            // no need to upgrade
+            return jt;
+        }
+        else {
+            // upgrade access token and jsapi ticket
+            const httpRequest = new XMLHttpRequest();
+            httpRequest.open('GET', wechatApi.getAccessTokenUrl, false);
+            httpRequest.send();
+            if (httpRequest.readyState === 4 && httpRequest.status === 200) {
+                let response = JSON.parse(httpRequest.responseText);
+                if (response.errcode === undefined) {
+                    // success
+                    at = response.access_token;
+                    jtUrl = 'https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=' + at + '&type=jsapi';
+                    atStartTime = time;
+                    console.log('get access token success');
+                }
+                else {
+                    console.log('get access token failed:', response);
+                    return '';
+                }
+            }
+            else {
+                console.log('get access token failed');
+                return '';
+            }
+            const httpRequest1 = new XMLHttpRequest();
+            httpRequest1.open('GET', jtUrl, false);
+            httpRequest1.send();
+            if (httpRequest1.readyState === 4 && httpRequest1.status === 200) {
+                let response = JSON.parse(httpRequest1.responseText);
+                if (response.errcode === 0) {
+                    // success
+                    jt = response.ticket;
+                    jtStartTime = time.getHours();
+                    console.log('get jsapi ticket success');
+                    return jt;
+                }
+                else {
+                    console.log('get jsapi ticket failed');
+                    return '';
+                }
+            }
+            else {
+                console.log('get jsapi ticket failed');
+                return '';
+            }
         }
     }
     

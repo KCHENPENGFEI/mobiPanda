@@ -15,7 +15,9 @@
     "egg-scripts": "^2.11.0",
     "eosjs": "^20.0.0",
     "eosjs-ecc": "^4.0.7",
+    "js-sha1": "^0.6.0",
     "node-fetch": "^2.6.0",
+    "weixin-js-sdk": "^1.4.0-test",
     "xmlhttprequest": "^1.8.0"
   },
   "devDependencies": {
