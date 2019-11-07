@@ -158,6 +158,15 @@ const getSignFailedApi = {
     }
 };
 
+const getOssTokenSuccessApi = {
+    code: 0,
+    msg: 'get token success',
+    data: {
+        credentials: {},
+        expireTime: null
+    }
+}
+
 const httpErrorApi = {
     code: -1,
     msg: 'http/https error',
@@ -186,5 +195,6 @@ module.exports = {
     getInBoxesSuccessApi,
     getSignSuccessApi,
     getSignFailedApi,
+    getOssTokenSuccessApi,
     httpErrorApi
 }

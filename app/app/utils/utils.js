@@ -100,5 +100,6 @@ var generateRandomGeneId = (genderId) => {
 module.exports = {
     answerConvert,
     generateGeneId,
+    generateRandomPartGeneId,
     generateRandomGeneId
 }

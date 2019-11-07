@@ -43,6 +43,8 @@ if (httpRequest1.readyState === 4 && httpRequest1.status === 200) {
         jsapiTicket = getJsapiTicketResponse.ticket;
         jsapiTicketTimeStamp = new Date().getHours();
         console.log('get jsapi ticket success: ', jsapiTicket);
+        console.log('atTime: ', accessTokenTimeStamp);
+        console.log('jtTime: ', jsapiTicketTimeStamp);
     }
     else {
         console.log('get jsapi ticket failed:', getJsapiTicketResponse);

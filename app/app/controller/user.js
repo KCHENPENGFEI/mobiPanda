@@ -53,8 +53,16 @@ class userController extends Controller {
             if (account.length !== 0) {
                 // let e = {message: 'allready registered'};
                 // throw e;
-                const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
-                api.data.error = 'allready registered';
+                if (account[0].EOSAccount !== null) {
+                    const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
+                    api.data.error = 'allready registered';
+                    this.ctx.body = api;
+                    return;
+                }
+            }
+            else {
+                const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+                api.data.error = 'not registered';
                 this.ctx.body = api;
                 return;
             }

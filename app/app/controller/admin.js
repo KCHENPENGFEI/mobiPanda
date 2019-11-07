@@ -4,8 +4,16 @@ const Controller = require('egg').Controller;
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const wechatApi = require('../service/wechatApiConfig');
 const Api = require('../api/api');
+const Utils = require('../utils/utils');
 const ecc = require('eosjs-ecc');
 const sha1 = require('js-sha1');
+const OSS = require('ali-oss');
+const ossConfig = require('../service/ossConfig');
+const STS = OSS.STS;
+const sts = new STS({
+    accessKeyId: ossConfig.accessKeyId,
+    accessKeySecret: ossConfig.accessKeySecret
+});
 
 // const httpRequest = new XMLHttpRequest();
 // const httpRequest1 = new XMLHttpRequest();
@@ -111,9 +119,10 @@ class adminController extends Controller {
     }
 
     async getSign() {
-        let url = this.ctx.href;
+        // let url = this.ctx.href;
         let msg = this.ctx.query;
-        let openid = msg.openid;
+        let url = msg.url;
+        console.log("getSign");
         // let at = wechatApi.accessToken;
         // let jt = wechatApi.jsapiTicket;
         // let atStartTime = wechatApi.accessTokenTimeStamp;
@@ -122,7 +131,7 @@ class adminController extends Controller {
         // let expiresIn = wechatApi.expiresIn;
         let now = Date.parse(new Date()) / 1000;
         let nonceStr = Utils.generateRandomPartGeneId(10);
-        let jsapiTicket = await getTicket(now);
+        let jsapiTicket = await this.getTicket(now);
         if (jsapiTicket === '') {
             const api = JSON.parse(JSON.stringify(Api.getSignFailedApi));
             api.data.error = 'jsapi ticket null';
@@ -131,7 +140,7 @@ class adminController extends Controller {
         else {
             let str = 'jsapi_ticket=' + jsapiTicket + '&noncestr=' + nonceStr + '&timestamp=' + now + '&url=' + url;
             let signature = sha1(str);
-            console.log(signature);
+            console.log('signature: ', signature);
             const api = JSON.parse(JSON.stringify(Api.getSignSuccessApi));
             api.data.nonceStr = nonceStr;
             api.data.timestamp = now;
@@ -147,7 +156,9 @@ class adminController extends Controller {
         let jtStartTime = wechatApi.jsapiTicketTimeStamp;
         let jtUrl = wechatApi.getJaspiTicketUrl;
         let expiresIn = wechatApi.expiresIn;
-        if (time.getHours() === jtStartTime.getHours()) {
+        console.log('time: ', new Date(time * 1000).getHours());
+        console.log('jtTime: ', jtStartTime);
+        if (new Date(time * 1000).getHours() === jtStartTime) {
             // no need to upgrade
             return jt;
         }
@@ -182,7 +193,7 @@ class adminController extends Controller {
                 if (response.errcode === 0) {
                     // success
                     jt = response.ticket;
-                    jtStartTime = time.getHours();
+                    jtStartTime = new Date(time * 1000).getHours();
                     console.log('get jsapi ticket success');
                     return jt;
                 }
@@ -195,6 +206,44 @@ class adminController extends Controller {
                 console.log('get jsapi ticket failed');
                 return '';
             }
+        }
+    }
+
+    async getOssToken() {
+        let policy = {
+            "Statement": [
+                {
+                    "Action": "oss:*",
+                    "Effect": "Allow",
+                    "Resource": ["acs:oss:*:*:mobipanda/*"]
+                }
+            ],
+            "Version": "1"
+        };
+        try {
+            let now = Date.parse(new Date()) / 1000;
+            const api = JSON.parse(JSON.stringify(Api.getOssTokenSuccessApi));
+            if (now - ossConfig.gencredentialsTime > 3600) {
+                // upgrade
+                let token = await sts.assumeRole(
+                    ossConfig.roleArn, policy, 60 * 60, 'session'
+                );
+                api.data.credentials = token.credentials;
+                api.data.expireTime = 60 * 60;
+                ossConfig.credentials = token.credentials;
+                ossConfig.gencredentialsTime = now;
+                this.ctx.body = api;
+            }
+            else {
+                api.data.credentials = ossConfig.credentials;
+                api.data.expireTime = ossConfig.gencredentialsTime + 60 * 60 - now;
+                this.ctx.body = api;
+            }
+        } catch (e) {
+            const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+            api.data.error = 'get oss token failed';
+            console.log('error: ', e.message);
+            this.ctx.body = api;
         }
     }
     
