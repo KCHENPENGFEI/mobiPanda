@@ -90,6 +90,12 @@ class userController extends Controller {
                 }
                 let geneId = Utils.generateGeneId(answer);
                 let geneIdPart = geneId.substring(0, 8);
+                const characterTags = Utils.KMaxCharacter(character, 3);
+                const index = Utils.geneToSeed(geneId.slice(8, 20));
+                const tags = characterTags.map(charac => {
+                    const texts = Utils.characterReadable[charac]
+                    return texts[index % texts.length];
+                });
                 const firstIssueResult = await this.ctx.service.users.firstIssuePanda(openid, EOSAccount, EOSPublicKey, String(answer), geneIdPart);
                 if (firstIssueResult) {
                     // generate panda on EOS
@@ -120,6 +126,15 @@ class userController extends Controller {
                             const date = createTime;
                             api.data.panda.createTime = date;
                             api.data.character = character;
+                            let tagsList = [];
+                            for (let k = 0; k < tags.length; k++) {
+                                let tag = {
+                                    tageName: tags[k],
+                                    rare: tags[i] in Utils.rare
+                                };
+                                tagsList.push(tag);
+                            }
+                            api.data.panda.tags = tagsList;
                             let end = new Date();
                             console.log('all cost: ', end.getTime() - start.getTime());
                             this.ctx.body = api;
@@ -127,7 +142,9 @@ class userController extends Controller {
                         }
                         else {
                             // more than one panda
-                            // TODO
+                            const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+                            api.data.error = 'not first issue';
+                            this.ctx.body = api;
                         }
                         // await this.ctx.service.eosService.checkPanda(EOSAccount);
                     }
@@ -238,6 +255,18 @@ class userController extends Controller {
                 answer = answerLsit.map(item => {
                     return +item;
                 });
+                let convertedAnswer = Utils.answerConvert(answer);
+                let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+                let character = {};
+                for (var i = 0; i < convertedAnswer.length; i++) {
+                    if (i === 0) {
+                        continue;
+                    }
+                    else{
+                        const cha = characterList[i - 1];
+                        character[cha] = convertedAnswer[i];
+                    }
+                }
                 let genderId = '0000';
                 if (answer[0] === 0) {
                     genderId = '0000';
@@ -246,6 +275,12 @@ class userController extends Controller {
                     genderId = '0001';
                 }
                 let geneId = Utils.generateRandomGeneId(genderId);
+                const characterTags = Utils.KMaxCharacter(character, 3);
+                const index = Utils.geneToSeed(geneId.slice(8, 20));
+                const tags = characterTags.map(charac => {
+                    const texts = Utils.characterReadable[charac]
+                    return texts[index % texts.length];
+                });
                 // issue panda
                 const issuePanda = await this.ctx.service.eosService.issuePanda(EOSAccount, serviceConfig.symbol, ['panda'], geneId);
                 if (issuePanda.code === 0) {
@@ -265,6 +300,15 @@ class userController extends Controller {
                         api.data.panda.uuid = pandaUuid;
                         api.data.panda.gene = geneId;
                         api.data.panda.createTime = createTime;
+                        let tagsList = [];
+                        for (let k = 0; k < tags.length; k++) {
+                            let tag = {
+                                tageName: tags[k],
+                                rare: tags[i] in Utils.rare
+                            };
+                            tagsList.push(tag);
+                        }
+                        api.data.panda.tags = tagsList;
                         this.ctx.body = api;
                         await this.ctx.service.users.increasePandaQuantity(openid, 1, createTime);
                     }
@@ -284,6 +328,15 @@ class userController extends Controller {
                         api.data.panda.gene = geneId;
                         const date = createTime;
                         api.data.panda.createTime = date;
+                        let tagsList = [];
+                        for (let k = 0; k < tags.length; k++) {
+                            let tag = {
+                                tageName: tags[k],
+                                rare: tags[i] in Utils.rare
+                            };
+                            tagsList.push(tag);
+                        }
+                        api.data.panda.tags = tagsList;
                         this.ctx.body = api;
                         await this.ctx.service.users.increasePandaQuantity(openid, 1, date);
                     }
@@ -314,8 +367,29 @@ class userController extends Controller {
         let msg = this.ctx.query;
         let openid = msg.openid;
         try {
-            const EOSAccountList = await this.ctx.service.users.checkEOSAccount(openid);
-            const EOSAccount = EOSAccountList[0].EOSAccount;
+            // const EOSAccountList = await this.ctx.service.users.checkEOSAccount(openid);
+            // const EOSAccount = EOSAccountList[0].EOSAccount;
+            const resultList = await this.ctx.service.users.checkPandaAccountAndAnswer(openid);
+            const result = resultList[0];
+            const EOSAccount = result.EOSAccount;
+            const answerStr = result.answer;
+            const answerLsit = answerStr.split(',');
+            let answer = [];
+            answer = answerLsit.map(item => {
+                return +item;
+            });
+            let convertedAnswer = Utils.answerConvert(answer);
+            let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+            let character = {};
+            for (var i = 0; i < convertedAnswer.length; i++) {
+                if (i === 0) {
+                    continue;
+                }
+                else{
+                    const cha = characterList[i - 1];
+                    character[cha] = convertedAnswer[i];
+                }
+            }
             const pandasList = await this.ctx.service.eosService.checkPanda(EOSAccount);
             const api = JSON.parse(JSON.stringify(Api.pandaListSuccessApi));
             for (var i = 0; i < pandasList.length; i++) {
@@ -323,10 +397,25 @@ class userController extends Controller {
                 let uuid = panda.uuid;
                 let gene = panda.gene;
                 let createTime = panda.createtime;
+                const characterTags = Utils.KMaxCharacter(character, 3);
+                const index = Utils.geneToSeed(gene.slice(8, 20));
+                const tags = characterTags.map(charac => {
+                    const texts = Utils.characterReadable[charac]
+                    return texts[index % texts.length];
+                });
+                let tagsList = [];
+                for (let k = 0; k < tags.length; k++) {
+                    let tag = {
+                        tageName: tags[k],
+                        rare: tags[i] in Utils.rare
+                    };
+                    tagsList.push(tag);
+                }
                 api.data.pandaList.push({
                     gene: gene,
                     uuid: uuid,
-                    createTime: createTime
+                    createTime: createTime,
+                    tags: tagsList
                 });
             }
             this.ctx.body = api;
@@ -489,11 +578,39 @@ class userController extends Controller {
         // let memo = "123";
         // const result = await this.ctx.service.eosService.issuePanda(to, symbol, uris, memo);
         // this.ctx.body = result;
-        let receiverEOSAccount = msg.receiverEOSAccount;
-        let senderEOSAccount = msg.senderEOSAccount;
-        let uuid = msg.uuid;
-        const result = await this.service.users.deleteInBoxes(receiverEOSAccount, senderEOSAccount, uuid);
-        this.ctx.body = {result};
+        // let receiverEOSAccount = msg.receiverEOSAccount;
+        // let senderEOSAccount = msg.senderEOSAccount;
+        // let uuid = msg.uuid;
+        // const result = await this.service.users.deleteInBoxes(receiverEOSAccount, senderEOSAccount, uuid);
+        // this.ctx.body = {result};
+        let answer = msg.answer;
+        let convertedAnswer = Utils.answerConvert(answer);
+        let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+        let character = {};
+        for (var i = 0; i < convertedAnswer.length; i++) {
+            if (i === 0) {
+                continue;
+            }
+            else{
+                const cha = characterList[i - 1];
+                character[cha] = convertedAnswer[i];
+            }
+        }
+        let geneId = Utils.generateGeneId(answer);
+        const characterTags = Utils.KMaxCharacter(character, 3);
+        const index = Utils.geneToSeed(geneId.slice(8, 20));
+        const tags = characterTags.map(charac => {
+            const texts = Utils.characterReadable[charac]
+            return texts[index % texts.length];
+        });
+        this.ctx.body = {
+            character: character,
+            geneId: geneId,
+            characterTags: characterTags,
+            index: index,
+            tag: tags,
+            rare: tags[2] in Utils.rare
+        }
     }
 }
 

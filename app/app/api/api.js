@@ -59,7 +59,8 @@ const issuePandaSuccessApi = {
         panda: {
             gene: '',
             uuid: '',
-            createTime: null
+            createTime: null,
+            tags:[]
         }
     }
 };

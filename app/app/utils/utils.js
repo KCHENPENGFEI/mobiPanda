@@ -18,6 +18,55 @@ const characterGene = {
 
 const gene3 = '00000000';
 
+// character tag
+const characterReadable = {
+    controller: [
+        '运筹帷幄',
+        '在世诸葛',
+        '钢铁侠',
+        '小当家',
+        '灭霸'
+    ],
+    burst: [
+        '小辣椒',
+        '火山少女',
+        '定时炸弹',
+        '博尔特',
+    ],
+    loneliness: [
+        '孤独患者',
+        '寂寞先生',
+        '睡莲',
+        '葫芦娃',
+        '旅行青蛙',
+        '布偶猫',
+    ],
+    buddhist: [
+        '佛系青年',
+        '心如止水',
+        '听天由命',
+        '卡比兽',
+        '铁憨憨',
+        '树懒',
+        '沙师弟'
+    ],
+    openness: [
+        '中本聪',
+        '天马行空',
+        '暴风少年',
+        '小天才',
+        '拓荒者'
+    ]
+}
+
+const rare = {
+    '佛系青年': 1,
+    '中本聪': 1,
+    '小辣椒': 1,
+    '钢铁侠': 1,
+    '葫芦娃': 1
+}
+
 var answerConvert = (answer) => {
     converted = [];
     valueList = [];
@@ -97,9 +146,41 @@ var generateRandomGeneId = (genderId) => {
     return mainGeneId + partGeneId + gene3;
 };
 
+var geneToSeed = (gene) => {
+    let num = 0;
+    for (let i = 0; i < gene.length; i++) {
+        num += gene.charCodeAt(i);
+    }
+    return num;
+}
+
+var KMaxCharacter = (character, k) => {
+    let index = [].concat(new Array(k).fill(-1));
+    let keys = [];
+    // index.fill(-1);
+    for (let key in character) {
+        for (let i = 0; i < k; i++) {
+            if (character[key] > index[i]) {
+                for (let j = k - 1; j > i; j--) {
+                    index[j] = index[j - 1];
+                    keys[j] = keys[j - 1];
+                }
+                index[i] = character[key]
+                keys[i] = key;
+                break;
+            }
+        }
+    }
+    return keys;
+}
+
 module.exports = {
+    characterReadable,
+    rare,
     answerConvert,
     generateGeneId,
     generateRandomPartGeneId,
-    generateRandomGeneId
+    generateRandomGeneId,
+    geneToSeed,
+    KMaxCharacter
 }
