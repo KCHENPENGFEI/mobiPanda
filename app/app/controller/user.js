@@ -129,8 +129,8 @@ class userController extends Controller {
                             let tagsList = [];
                             for (let k = 0; k < tags.length; k++) {
                                 let tag = {
-                                    tageName: tags[k],
-                                    rare: tags[i] in Utils.rare
+                                    tagName: tags[k],
+                                    rare: tags[k] in Utils.rare
                                 };
                                 tagsList.push(tag);
                             }
@@ -177,10 +177,10 @@ class userController extends Controller {
     async checkIssue() {
         const rankTable = {
             "0": 0,
-            "1": 1,
-            "2": 4,
-            "3": 6,
-            "4": 24
+            "1": 3,
+            "2": 10,
+            "3": 60,
+            "4": 12 * 60
         };
         let msg = this.ctx.query;
         let openid = msg.openid;
@@ -194,10 +194,10 @@ class userController extends Controller {
                 lastCreateTime = Date.parse(new Date()) / 1000;
             }
             if (pandaQuantity >= 4) {
-                timestamp = rankTable[4] * 3600;
+                timestamp = rankTable[4] * 60;
             }
             else {
-                timestamp = rankTable[pandaQuantity] * 3600;
+                timestamp = rankTable[pandaQuantity] * 60;
             }
             if (Date.parse(new Date()) / 1000 - lastCreateTime > timestamp) {
                 // issue next panda
@@ -223,10 +223,10 @@ class userController extends Controller {
     async issueAgain() {
         const rankTable = {
             "0": 0,
-            "1": 1,
-            "2": 4,
-            "3": 6,
-            "4": 24
+            "1": 3,
+            "2": 10,
+            "3": 60,
+            "4": 12 * 60
         };
         let msg = this.ctx.request.body;
         let openid = msg.openid;
@@ -240,12 +240,12 @@ class userController extends Controller {
                 lastCreateTime = Date.parse(new Date()) / 1000;
             }
             if (pandaQuantity >= 4) {
-                timestamp = rankTable[4] * 3600;
+                timestamp = rankTable[4] * 60;
             }
             else {
-                timestamp = rankTable[pandaQuantity] * 3600;
+                timestamp = rankTable[pandaQuantity] * 60;
             }
-            if (Date.parse(new Date()) / 1000 - lastCreateTime > timestamp) {
+            if (Date.parse(new Date()) / 1000 - lastCreateTime > 0) {
                 const resultList = await this.ctx.service.users.checkPandaAccountAndAnswer(openid);
                 const result = resultList[0];
                 const EOSAccount = result.EOSAccount;
@@ -303,8 +303,8 @@ class userController extends Controller {
                         let tagsList = [];
                         for (let k = 0; k < tags.length; k++) {
                             let tag = {
-                                tageName: tags[k],
-                                rare: tags[i] in Utils.rare
+                                tagName: tags[k],
+                                rare: tags[k] in Utils.rare
                             };
                             tagsList.push(tag);
                         }
@@ -331,8 +331,8 @@ class userController extends Controller {
                         let tagsList = [];
                         for (let k = 0; k < tags.length; k++) {
                             let tag = {
-                                tageName: tags[k],
-                                rare: tags[i] in Utils.rare
+                                tagName: tags[k],
+                                rare: tags[k] in Utils.rare
                             };
                             tagsList.push(tag);
                         }
@@ -406,8 +406,8 @@ class userController extends Controller {
                 let tagsList = [];
                 for (let k = 0; k < tags.length; k++) {
                     let tag = {
-                        tageName: tags[k],
-                        rare: tags[i] in Utils.rare
+                        tagName: tags[k],
+                        rare: tags[k] in Utils.rare
                     };
                     tagsList.push(tag);
                 }
@@ -432,11 +432,47 @@ class userController extends Controller {
         try {
             const getPandaResult = await this.service.eosService.checkPandaByUuid(uuid);
             let gene = getPandaResult[0].gene;
+            let owner = getPandaResult[0].owner;
+            let result = await this.service.users.checkAnswerByAccount(owner);
+            const answerStr = result.answer;
+            const answerLsit = answerStr.split(',');
+            let answer = [];
+            answer = answerLsit.map(item => {
+                return +item;
+            });
+            let convertedAnswer = Utils.answerConvert(answer);
+            let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+            let character = {};
+            for (var i = 0; i < convertedAnswer.length; i++) {
+                if (i === 0) {
+                    continue;
+                }
+                else{
+                    const cha = characterList[i - 1];
+                    character[cha] = convertedAnswer[i];
+                }
+            }
+            const characterTags = Utils.KMaxCharacter(character, 3);
+            const index = Utils.geneToSeed(gene.slice(8, 20));
+            const tags = characterTags.map(charac => {
+                const texts = Utils.characterReadable[charac]
+                return texts[index % texts.length];
+            });
             let createTime = getPandaResult[0].createtime;
             const api = JSON.parse(JSON.stringify(Api.getPandaSuccessApi));
+            api.data.character = character;
             api.data.panda.uuid = uuid;
             api.data.panda.gene = gene;
             api.data.panda.createTime = createTime;
+            let tagsList = [];
+            for (let k = 0; k < tags.length; k++) {
+                let tag = {
+                    tagName: tags[k],
+                    rare: tags[k] in Utils.rare
+                };
+                tagsList.push(tag);
+            }
+            api.data.panda.tags = tagsList;
             this.ctx.body = api;
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));

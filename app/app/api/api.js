@@ -61,7 +61,7 @@ const issuePandaSuccessApi = {
             uuid: '',
             createTime: null,
             tags:[]
-        }
+        },
     }
 };
 
