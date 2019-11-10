@@ -8,39 +8,7 @@ const BN = require('bn.js');
 
 var debug = true;
 
-
 class userController extends Controller {
-    async login() {
-        // const user = 'cpfzju';
-        // const symbol = 'MBPD';
-        // const memo = 'eosjsTest';
-        // this.ctx.body = await this.service.eosService.issuePanda(user, symbol, memo);
-        let msg = this.ctx.request.body;
-        const result = await this.service.users.login(msg.openid);
-        if (result === null) {
-            // register users in database
-            const registerResult = await this.service.users.register(msg.openid);
-            if (registerResult) {
-                // register success
-                const api = JSON.parse(JSON.stringify(Api.loginSucccessApi));
-                api.data.EOSAccount = '';
-                this.ctx.body = api;
-            }
-            else {
-                // register error
-                const api = JSON.parse(JSON.stringify(Api.loginFailedApi));
-                api.data.error = '注册失败';
-                this.ctx.body = api;
-            }
-        }
-        else {
-            // has allready registered
-            const api = JSON.parse(JSON.stringify(Api.loginSucccessApi));
-            api.data.EOSAccount = result.EOSAccount;
-            this.ctx.body = api;
-        }
-    }
-
     async issue() {
         let start = new Date();
         let msg = this.ctx.request.body;
@@ -51,135 +19,115 @@ class userController extends Controller {
         
         try {
             // check if openid exist
-            if (!debug) {
-                const account = await this.ctx.service.users.checkEOSAccount(openid);
-                if (account.length !== 0) {
-                    // let e = {message: 'allready registered'};
-                    // throw e;
-                    if (account[0].EOSAccount !== null) {
-                        const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
-                        api.data.error = '重复注册eos账号';
-                        this.ctx.body = api;
-                        return;
-                    }
-                }
-                else {
-                    const api = JSON.parse(JSON.stringify(Api.exceptionApi));
-                    api.data.error = '您还未授权登陆';
-                    this.ctx.body = api;
-                    return;
-                }
+            // if (!debug) {
+            //     const result = await this.service.users.checkRegister(openid);
+            //     if (result.code === -1) {
+            //         const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+            //         api.data.error = result.msg;
+            //         this.ctx.body = api;
+            //         return;
+            //     }
+            // }
+            // // generate user's account
+            // let time1 = new Date();
+            // const signupResult = await this.ctx.service.eosService.createNewAccount(EOSAccount, EOSPublicKey);
+            // // const signupResult = {code: 0};
+            // let time2 = new Date();
+            // console.log('create account: ', time2.getTime() - time1.getTime());
+            // if (signupResult.code === -1) {
+            //     // signup failed
+            //     const api = JSON.parse(JSON.stringify(Api.signupFailedApi));
+            //     api.data.error = signupResult.msg;
+            //     this.ctx.body = api;
+            //     return;
+            // }
+
+            // signup success
+            // generate panda's gene
+            // storage user's data
+            let parseResult = await this.service.users.parseAnswer(answer);
+            let geneId = parseResult.geneId;
+            let character = parseResult.character;
+            let tagsList = parseResult.tagsList;
+            let geneIdMain = geneId.substring(0, 8);
+
+            const insertResult = await this.service.users.insertUserInfo(openid, EOSAccount, EOSPublicKey, answer);
+            if (!insertResult) {
+                // database error
+                const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
+                api.data.error = '用户注册数据插入失败';
+                this.ctx.body = api;
+                return;
             }
-            // generate user's account
-            let time1 = new Date();
-            const signupResult = await this.ctx.service.eosService.createNewAccount(EOSAccount, EOSPublicKey);
-            // const signupResult = {code: 0};
-            let time2 = new Date();
-            console.log('create account: ', time2.getTime() - time1.getTime());
-            if (signupResult.code === 0) {
-                // signup success
-                // generate panda's gene
-                // storage user's data
-                let convertedAnswer = Utils.answerConvert(answer);
-                let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
-                let character = {};
-                for (var i = 0; i < convertedAnswer.length; i++) {
-                    if (i === 0) {
-                        continue;
-                    }
-                    else{
-                        const cha = characterList[i - 1];
-                        character[cha] = convertedAnswer[i];
-                    }
-                }
-                let geneId = Utils.generateGeneId(answer);
-                let geneIdPart = geneId.substring(0, 8);
-                const characterTags = Utils.KMaxCharacter(character, 3);
-                const index = Utils.geneToSeed(geneId.slice(8, 20));
-                const tags = characterTags.map(charac => {
-                    const texts = Utils.characterReadable[charac]
-                    return texts[index % texts.length];
-                });
-                const firstIssueResult = await this.ctx.service.users.firstIssuePanda(openid, EOSAccount, EOSPublicKey, String(answer), geneIdPart);
-                if (firstIssueResult) {
-                    // generate panda on EOS
-                    let time3 = new Date();
-                    const issuePanda = await this.ctx.service.eosService.issuePanda(EOSAccount, serviceConfig.symbol, ['panda'], geneId);
-                    let time4 = new Date();
-                    console.log('issue panda: ', time4.getTime() - time3.getTime());
-                    // TODO
-                    if (issuePanda.code === 0) {
-                        // issue success
-                        // this.ctx.body = 'success';
-                        // get uuid
-                        let time5 = new Date();
-                        const pandaTable = await this.ctx.service.eosService.checkPanda(EOSAccount);
-                        let time6 = new Date();
-                        console.log('check panda: ', time6.getTime() - time5.getTime());
-                        if (pandaTable.length === 0) {
-                            const api = JSON.parse(JSON.stringify(Api.checkPandaFailedApi));
-                            api.data.error = '不存在熊猫';
-                            this.ctx.body = api;
-                        }
-                        else if (pandaTable.length === 1) {
-                            const pandaUuid = pandaTable[0].uuid;
-                            const createTime = pandaTable[0].createtime;
-                            const api = JSON.parse(JSON.stringify(Api.issuePandaSuccessApi));
-                            api.data.panda.uuid = pandaUuid;
-                            api.data.panda.gene = geneId;
-                            const date = createTime;
-                            api.data.panda.createTime = date;
-                            api.data.character = character;
-                            let tagsList = [];
-                            for (let k = 0; k < tags.length; k++) {
-                                let tag = {
-                                    tagName: tags[k],
-                                    rare: tags[k] in Utils.rare
-                                };
-                                tagsList.push(tag);
-                            }
-                            api.data.panda.tags = tagsList;
-                            let end = new Date();
-                            console.log('all cost: ', end.getTime() - start.getTime());
-                            this.ctx.body = api;
-                            await this.ctx.service.users.updatePandaQuantity(openid, 1, date);
-                        }
-                        else {
-                            // more than one panda
-                            const api = JSON.parse(JSON.stringify(Api.exceptionApi));
-                            api.data.error = '非第一次生成熊猫';
-                            this.ctx.body = api;
-                        }
-                        // await this.ctx.service.eosService.checkPanda(EOSAccount);
-                    }
-                    else {
-                        // issue failed
-                        const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
-                        api.data.error = issuePanda.msg;
-                        this.ctx.body = api;
-                    }
-                }
-                else {
-                    const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
-                    api.data.error = '数据库插入失败';
-                    this.ctx.body = api;
-                }
+
+            let time3 = new Date();
+            const issueResult = await this.ctx.service.eosService.issuePanda(EOSAccount, serviceConfig.symbol, ['panda'], geneId);
+            let time4 = new Date();
+            console.log('issue panda: ', time4.getTime() - time3.getTime());
+
+            if (issueResult.code === -1) {
+                // issue failed
+                const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
+                api.data.error = issueResult.msg;
+                this.ctx.body = api;
+                return;
+            }
+
+            const firstIssueResult = await this.ctx.service.users.firstIssuePanda(openid, geneIdMain);
+            if (!firstIssueResult) {
+                // database error
+                const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
+                api.data.error = '熊猫基因数据插入失败';
+                this.ctx.body = api;
+                return;
+            }
+
+            // issue success
+            // get panda info
+            let time5 = new Date();
+            const pandaTable = await this.ctx.service.eosService.checkPanda(EOSAccount);
+            let time6 = new Date();
+            console.log('check panda: ', time6.getTime() - time5.getTime());
+
+            if (pandaTable.length === 0) {
+                const api = JSON.parse(JSON.stringify(Api.checkPandaFailedApi));
+                api.data.error = '不存在熊猫';
+                this.ctx.body = api;
+                return;
+            }
+            else if (pandaTable.length === 1) {
+                const uuid = pandaTable[0].uuid;
+                const createTime = pandaTable[0].createtime;
+                const api = JSON.parse(JSON.stringify(Api.issuePandaSuccessApi));
+                api.data.character = character;
+                api.data.panda.uuid = uuid;
+                api.data.panda.gene = geneId;
+                api.data.panda.createTime = createTime;
+                api.data.panda.tags = tagsList;
+
+                let end = new Date();
+                console.log('all cost: ', end.getTime() - start.getTime());
+                this.ctx.body = api;
+                await this.ctx.service.users.updatePandaQuantity(openid, 1, createTime);
+                return;
             }
             else {
-                // failed
-                const api = JSON.parse(JSON.stringify(Api.signupFailedApi));
-                api.data.error = signupResult.msg;
+                // more than one panda
+                const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+                api.data.error = '非第一次生成熊猫';
                 this.ctx.body = api;
+                return;
             }
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
             this.ctx.body = api;
+            return;
         }
     }
 
     async checkIssue() {
-        const rankTable = {};
+        var rankTable = {};
         if (debug) {
             rankTable = {
                 "0": 0,
@@ -201,26 +149,23 @@ class userController extends Controller {
         let msg = this.ctx.query;
         let openid = msg.openid;
         try {
-            const selectResultList = await this.service.users.checkPandaQuantity(openid);
-            const selectResult = selectResultList[0];
-            let timestamp = 0;
-            const pandaQuantity = selectResult.pandaQuantity;
-            const lastCreateTime = selectResult.lastCreateTime;
-            if (lastCreateTime === null) {
-                lastCreateTime = Date.parse(new Date()) / 1000;
+            const result = await this.service.users.quantityToTimestamp(rankTable, openid);
+            if (result.code === -1) {
+                // error
+                const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+                api.data.error = result.msg;
+                this.ctx.body = api;
+                return;                
             }
-            if (pandaQuantity >= 4) {
-                timestamp = rankTable[4] * 60;
-            }
-            else {
-                timestamp = rankTable[pandaQuantity] * 60;
-            }
+            let timestamp = result.timestamp;
+            let lastCreateTime = result.lastCreateTime;
             if (Date.parse(new Date()) / 1000 - lastCreateTime > timestamp) {
                 // issue next panda
                 const api = JSON.parse(JSON.stringify(Api.checkIssueSuccessApi));
                 api.data.status = true;
                 api.data.nextTime = -1;
                 this.ctx.body = api;
+                return;
             }
             else {
                 var api = JSON.parse(JSON.stringify(Api.checkIssueSuccessApi));
@@ -228,16 +173,18 @@ class userController extends Controller {
                 api.data.status = false;
                 api.data.nextTime = lastCreateTime + timestamp;
                 this.ctx.body = api;
+                return;
             }
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
             this.ctx.body = api;
+            return;
         }
     }
 
     async issueAgain() {
-        const rankTable = {};
+        var rankTable = {};
         if (debug) {
             rankTable = {
                 "0": 0,
@@ -259,121 +206,79 @@ class userController extends Controller {
         let msg = this.ctx.request.body;
         let openid = msg.openid;
         try {
-            const selectResultList = await this.service.users.checkPandaQuantity(openid);
-            const selectResult = selectResultList[0];
-            let timestamp = 0;
-            const pandaQuantity = selectResult.pandaQuantity;
-            const lastCreateTime = selectResult.lastCreateTime;
-            if (lastCreateTime === null) {
-                lastCreateTime = Date.parse(new Date()) / 1000;
+            const result = await this.service.users.quantityToTimestamp(rankTable, openid);
+            if (result.code === -1) {
+                // error
+                const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+                api.data.error = result.msg;
+                this.ctx.body = api;
+                return;                
             }
-            if (pandaQuantity >= 4) {
-                timestamp = rankTable[4] * 60;
-            }
-            else {
-                timestamp = rankTable[pandaQuantity] * 60;
-            }
-            if (Date.parse(new Date()) / 1000 - lastCreateTime > 0) {
-                const resultList = await this.ctx.service.users.checkPandaAccountAndAnswer(openid);
-                const result = resultList[0];
+            let timestamp = result.timestamp;
+            let lastCreateTime = result.lastCreateTime;
+
+            if (Date.parse(new Date()) / 1000 - lastCreateTime > timestamp) {
+                const result = await this.service.users.randomParseAnswer(openid);
+                if (result.code === -1) {
+                    const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
+                    api.data.error = result.msg;
+                    this.ctx.body = api;
+                    return;
+                }
                 const EOSAccount = result.EOSAccount;
-                const answerStr = result.answer;
-                const answerLsit = answerStr.split(',');
-                let answer = [];
-                answer = answerLsit.map(item => {
-                    return +item;
-                });
-                let convertedAnswer = Utils.answerConvert(answer);
-                let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
-                let character = {};
-                for (var i = 0; i < convertedAnswer.length; i++) {
-                    if (i === 0) {
-                        continue;
-                    }
-                    else{
-                        const cha = characterList[i - 1];
-                        character[cha] = convertedAnswer[i];
-                    }
-                }
-                let genderId = '0000';
-                if (answer[0] === 0) {
-                    genderId = '0000';
-                }
-                else {
-                    genderId = '0001';
-                }
-                let geneId = Utils.generateRandomGeneId(genderId);
-                const characterTags = Utils.KMaxCharacter(character, 3);
-                const index = Utils.geneToSeed(geneId.slice(8, 20));
-                const tags = characterTags.map(charac => {
-                    const texts = Utils.characterReadable[charac]
-                    return texts[index % texts.length];
-                });
+                const geneId = result.geneId;
+                const character = result.character;
+                const tagsList = result.tagsList;
+
                 // issue panda
                 const issuePanda = await this.ctx.service.eosService.issuePanda(EOSAccount, serviceConfig.symbol, ['panda'], geneId);
-                if (issuePanda.code === 0) {
-                    // issue success
-                    // this.ctx.body = 'success';
-                    // get uuid
-                    const pandaTable = await this.ctx.service.eosService.checkPanda(EOSAccount);
-                    if (pandaTable.length === 0) {
-                        const api = JSON.parse(JSON.stringify(Api.checkPandaFailedApi));
-                        api.data.error = '不存在熊猫';
-                        this.ctx.body = api;
-                    }
-                    else if (pandaTable.length === 1) {
-                        const pandaUuid = pandaTable[0].uuid;
-                        const createTime = pandaTable[0].createtime;
-                        const api = JSON.parse(JSON.stringify(Api.issuePandaAgainSuccessApi));
-                        api.data.panda.uuid = pandaUuid;
-                        api.data.panda.gene = geneId;
-                        api.data.panda.createTime = createTime;
-                        let tagsList = [];
-                        for (let k = 0; k < tags.length; k++) {
-                            let tag = {
-                                tagName: tags[k],
-                                rare: tags[k] in Utils.rare
-                            };
-                            tagsList.push(tag);
-                        }
-                        api.data.panda.tags = tagsList;
-                        this.ctx.body = api;
-                        await this.ctx.service.users.increasePandaQuantity(openid, 1, createTime);
-                    }
-                    else {
-                        // more than one panda
-                        // TODO
-                        for (var i = 0; i < pandaTable.length; i++) {
-                            const pandaGene = pandaTable[i].gene;
-                            if (pandaGene === geneId) {
-                                break;
-                            }
-                        }
-                        const pandaUuid = pandaTable[i].uuid;
-                        const createTime = pandaTable[i].createtime;
-                        const api = JSON.parse(JSON.stringify(Api.issuePandaSuccessApi));
-                        api.data.panda.uuid = pandaUuid;
-                        api.data.panda.gene = geneId;
-                        const date = createTime;
-                        api.data.panda.createTime = date;
-                        let tagsList = [];
-                        for (let k = 0; k < tags.length; k++) {
-                            let tag = {
-                                tagName: tags[k],
-                                rare: tags[k] in Utils.rare
-                            };
-                            tagsList.push(tag);
-                        }
-                        api.data.panda.tags = tagsList;
-                        this.ctx.body = api;
-                        await this.ctx.service.users.increasePandaQuantity(openid, 1, date);
-                    }
-                }
-                else {
+                if (issuePanda.code === -1) {
                     // issue failed
                     const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
                     api.data.error = issuePanda.msg;
                     this.ctx.body = api;
+                    return;
+                }
+
+                // issue success
+                // check panda
+                const pandaTable = await this.ctx.service.eosService.checkPanda(EOSAccount);
+                if (pandaTable.length === 0) {
+                    const api = JSON.parse(JSON.stringify(Api.checkPandaFailedApi));
+                    api.data.error = '不存在熊猫';
+                    this.ctx.body = api;
+                    return;
+                }
+                else if (pandaTable.length === 1) {
+                    const uuid = pandaTable[0].uuid;
+                    const createTime = pandaTable[0].createtime;
+                    const api = JSON.parse(JSON.stringify(Api.issuePandaAgainSuccessApi));
+                    api.data.panda.uuid = uuid;
+                    api.data.panda.gene = geneId;
+                    api.data.panda.createTime = createTime;
+                    api.data.panda.tags = tagsList;
+                    this.ctx.body = api;
+                    await this.ctx.service.users.increasePandaQuantity(openid, 1, createTime);
+                    return;
+                }
+                else {
+                    // more than one panda
+                    for (var i = 0; i < pandaTable.length; i++) {
+                        const pandaGene = pandaTable[i].gene;
+                        if (pandaGene === geneId) {
+                            break;
+                        }
+                    }
+                    const uuid = pandaTable[i].uuid;
+                    const createTime = pandaTable[i].createtime;
+                    const api = JSON.parse(JSON.stringify(Api.issuePandaSuccessApi));
+                    api.data.panda.uuid = uuid;
+                    api.data.panda.gene = geneId;
+                    api.data.panda.createTime = createTime;
+                    api.data.panda.tags = tagsList;
+                    this.ctx.body = api;
+                    await this.ctx.service.users.increasePandaQuantity(openid, 1, createTime);
+                    return;
                 }
             }
             else {
@@ -383,11 +288,13 @@ class userController extends Controller {
                 api.data.status = false;
                 api.data.nextTime = lastCreateTime + timestamp;
                 this.ctx.body = api;
+                return;
             }
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
             this.ctx.body = api;
+            return;
         }
     }
 

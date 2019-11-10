@@ -1,26 +1,206 @@
+'use strict';
+
 const Service = require('egg').Service;
+const Utils = require('../utils/utils');
 
 const table = 'tb_pandas';
 const inBoxesTable = 'tb_inBoxes';
 const transferInfoTable = 'tb_transferInfo';
 
 class userService extends Service {
-    async login(openid) {
-        const loginResult = await this.app.mysql.get(table, { openid: openid });
-        return loginResult;
+    async loginAndRegister(openid) {
+        const loginResult = await this.app.mysql.get(table, {openid: openid});
+        if (loginResult === null) {
+            // do register
+            const registerResult = await this.app.mysql.insert(table, {openid: openid});
+            const insertSuccess = registerResult.affectedRows === 1;
+            if (insertSuccess) {
+                return {EOSAccount: '', openid: openid};
+            }
+            else {
+                return {};
+            }
+        }
+        else {
+            return loginResult;
+        }
     }
 
-    async register(openid) {
-        const registerResult = await this.app.mysql.insert(table, {openid: openid});
-        const insertSuccess = registerResult.affectedRows === 1;
-        return insertSuccess;
+    async checkRegister(openid) {
+        const account = await this.checkEOSAccount(openid);
+        if (account.length !== 0) {
+            if (account[0].EOSAccount !== null) {
+                return {
+                    code: 0
+                };
+            }
+            else {
+                return {
+                    code: -1,
+                    msg: '重复注册eos账号'
+                };
+            }
+        }
+        else {
+            return {
+                code: -1,
+                msg: '您还未授权登陆'
+            };
+        }
     }
 
-    async firstIssuePanda(openid, EOSAccount, EOSPublicKey, answer, genePart) {
+    async parseAnswer(answer) {
+        let convertedAnswer = Utils.answerConvert(answer);
+        let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+        let character = {};
+        // gennerate character
+        for (let i = 0; i < convertedAnswer.length; i++) {
+            if (i === 0) {
+                continue;
+            }
+            else{
+                const cha = characterList[i - 1];
+                character[cha] = convertedAnswer[i];
+            }
+        }
+        let geneId = Utils.generateGeneId(answer);
+        const characterTags = Utils.KMaxCharacter(character, 3);
+        const index = Utils.geneToSeed(geneId.slice(8, 20));
+        const tags = characterTags.map(charac => {
+            const texts = Utils.characterReadable[charac]
+            return texts[index % texts.length];
+        });
+        let tagsList = [];
+        for (let k = 0; k < tags.length; k++) {
+            let tag = {
+                tagName: tags[k],
+                rare: tags[k] in Utils.rare
+            };
+            tagsList.push(tag);
+        }
+        return {
+            geneId: geneId,
+            character: character,
+            tagsList: tagsList
+        };
+    }
+
+    async randomParseAnswer(openid) {
+        const resultList = await this.checkPandaAccountAndAnswer(openid);
+        if (resultList.length === 0) {
+            return {
+                code: -1,
+                msg: '未查找到用户'
+            };
+        }
+        const EOSAccount = resultList[0].EOSAccount;
+        const answerStr = resultList[0].answer;
+        const answerList = answerStr.split(',');
+        let answer = [];
+        answer = answerList.map(item => {
+            return +item;
+        });
+        let convertedAnswer = Utils.answerConvert(answer);
+        let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+        let character = {};
+        for (var i = 0; i < convertedAnswer.length; i++) {
+            if (i === 0) {
+                continue;
+            }
+            else{
+                const cha = characterList[i - 1];
+                character[cha] = convertedAnswer[i];
+            }
+        }
+        let genderId = '0000';
+        if (answer[0] === 0) {
+            genderId = '0000';
+        }
+        else {
+            genderId = '0001';
+        }
+        let geneId = Utils.generateRandomGeneId(genderId);
+        const characterTags = Utils.KMaxCharacter(character, 3);
+        const index = Utils.geneToSeed(geneId.slice(8, 20));
+        const tags = characterTags.map(charac => {
+            const texts = Utils.characterReadable[charac]
+            return texts[index % texts.length];
+        });
+        let tagsList = [];
+        for (let k = 0; k < tags.length; k++) {
+            let tag = {
+                tagName: tags[k],
+                rare: tags[k] in Utils.rare
+            };
+            tagsList.push(tag);
+        }
+        return {
+            EOSAccount: EOSAccount,
+            geneId: geneId,
+            character: character,
+            tagsList: tagsList
+        };
+    }
+
+    async quantityToTimestamp(rankTb, openid) {
+        const quaResult = await this.checkPandaQuantity(openid);
+        if (quaResult.length === 0) {
+            // check failed
+            return {
+                code: -1,
+                msg: '熊猫数量为0'
+            };
+        }
+        let timestamp = 0;
+        const pandaQuantity = quaResult[0].pandaQuantity;
+        const lastCreateTime = quaResult[0].lastCreateTime;
+        if (lastCreateTime === null) {
+            lastCreateTime = Date.parse(new Date()) / 1000;
+        }
+        if (pandaQuantity >= 4) {
+            timestamp = rankTb[4] * 60;
+        }
+        else {
+            timestamp = rankTb[pandaQuantity] * 60;
+        }
+        return {
+            code: 0,
+            msg: '',
+            lastCreateTime: lastCreateTime,
+            timestamp: timestamp
+        };
+    }
+    // async login(openid) {
+    //     const loginResult = await this.app.mysql.get(table, { openid: openid });
+    //     return loginResult;
+    // }
+
+    // async register(openid) {
+    //     const registerResult = await this.app.mysql.insert(table, {openid: openid});
+    //     const insertSuccess = registerResult.affectedRows === 1;
+    //     return insertSuccess;
+    // }
+
+    async insertUserInfo(openid, EOSAccount, EOSPublicKey, answer) {
         const row = {
             EOSAccount: EOSAccount,
             EOSPublicKey: EOSPublicKey,
-            answer: answer,
+            answer: answer
+        };
+
+        const option = {
+            where: {
+                openid: openid
+            }
+        };
+
+        const insertResult = await this.app.mysql.update(table, row, option);
+        const returnResult = insertResult.affectedRows === 1;
+        return returnResult;
+    }
+
+    async firstIssuePanda(openid, genePart) {
+        const row = {
             pandaQuantity: 0,
             genePart: genePart
         };

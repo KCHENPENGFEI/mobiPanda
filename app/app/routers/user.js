@@ -2,7 +2,6 @@
 
 module.exports = app => {
     const { router, controller } = app;
-    router.post('/user/login', controller.user.login);
     router.post('/user/issue', controller.user.issue);
     router.get('/user/checkIssue', controller.user.checkIssue);
     router.post('/user/issueAgain', controller.user.issueAgain);
