@@ -65,7 +65,7 @@ class adminController extends Controller {
                             else {
                                 // register error
                                 const api = JSON.parse(JSON.stringify(Api.loginFailedApi));
-                                api.data.error = 'register failed';
+                                api.data.error = '注册失败';
                                 this.ctx.body = api;
                             }
                         }

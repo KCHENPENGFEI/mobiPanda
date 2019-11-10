@@ -6,6 +6,8 @@ const Utils = require('../utils/utils');
 const serviceConfig = require('../service/config');
 const BN = require('bn.js');
 
+var debug = true;
+
 
 class userController extends Controller {
     async login() {
@@ -27,7 +29,7 @@ class userController extends Controller {
             else {
                 // register error
                 const api = JSON.parse(JSON.stringify(Api.loginFailedApi));
-                api.data.error = 'register failed';
+                api.data.error = '注册失败';
                 this.ctx.body = api;
             }
         }
@@ -49,22 +51,24 @@ class userController extends Controller {
         
         try {
             // check if openid exist
-            const account = await this.ctx.service.users.checkEOSAccount(openid);
-            if (account.length !== 0) {
-                // let e = {message: 'allready registered'};
-                // throw e;
-                if (account[0].EOSAccount !== null) {
-                    const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
-                    api.data.error = 'allready registered';
+            if (!debug) {
+                const account = await this.ctx.service.users.checkEOSAccount(openid);
+                if (account.length !== 0) {
+                    // let e = {message: 'allready registered'};
+                    // throw e;
+                    if (account[0].EOSAccount !== null) {
+                        const api = JSON.parse(JSON.stringify(Api.issuePandaFailedApi));
+                        api.data.error = '重复注册eos账号';
+                        this.ctx.body = api;
+                        return;
+                    }
+                }
+                else {
+                    const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+                    api.data.error = '您还未授权登陆';
                     this.ctx.body = api;
                     return;
                 }
-            }
-            else {
-                const api = JSON.parse(JSON.stringify(Api.exceptionApi));
-                api.data.error = 'not registered';
-                this.ctx.body = api;
-                return;
             }
             // generate user's account
             let time1 = new Date();
@@ -114,7 +118,7 @@ class userController extends Controller {
                         console.log('check panda: ', time6.getTime() - time5.getTime());
                         if (pandaTable.length === 0) {
                             const api = JSON.parse(JSON.stringify(Api.checkPandaFailedApi));
-                            api.data.error = 'no panda left';
+                            api.data.error = '不存在熊猫';
                             this.ctx.body = api;
                         }
                         else if (pandaTable.length === 1) {
@@ -143,7 +147,7 @@ class userController extends Controller {
                         else {
                             // more than one panda
                             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
-                            api.data.error = 'not first issue';
+                            api.data.error = '非第一次生成熊猫';
                             this.ctx.body = api;
                         }
                         // await this.ctx.service.eosService.checkPanda(EOSAccount);
@@ -157,7 +161,7 @@ class userController extends Controller {
                 }
                 else {
                     const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
-                    api.data.error = 'insert error when issue panda';
+                    api.data.error = '数据库插入失败';
                     this.ctx.body = api;
                 }
             }
@@ -175,13 +179,25 @@ class userController extends Controller {
     }
 
     async checkIssue() {
-        const rankTable = {
-            "0": 0,
-            "1": 3,
-            "2": 10,
-            "3": 60,
-            "4": 12 * 60
-        };
+        const rankTable = {};
+        if (debug) {
+            rankTable = {
+                "0": 0,
+                "1": 0.5,
+                "2": 0.5,
+                "3": 0.5,
+                "4": 0.5
+            };
+        }
+        else {
+            rankTable = {
+                "0": 0,
+                "1": 1,
+                "2": 5,
+                "3": 60,
+                "4": 12 * 60
+            };
+        }
         let msg = this.ctx.query;
         let openid = msg.openid;
         try {
@@ -221,13 +237,25 @@ class userController extends Controller {
     }
 
     async issueAgain() {
-        const rankTable = {
-            "0": 0,
-            "1": 3,
-            "2": 10,
-            "3": 60,
-            "4": 12 * 60
-        };
+        const rankTable = {};
+        if (debug) {
+            rankTable = {
+                "0": 0,
+                "1": 0.5,
+                "2": 0.5,
+                "3": 0.5,
+                "4": 0.5
+            };
+        }
+        else {
+            rankTable = {
+                "0": 0,
+                "1": 1,
+                "2": 5,
+                "3": 60,
+                "4": 12 * 60
+            };
+        }
         let msg = this.ctx.request.body;
         let openid = msg.openid;
         try {
@@ -290,7 +318,7 @@ class userController extends Controller {
                     const pandaTable = await this.ctx.service.eosService.checkPanda(EOSAccount);
                     if (pandaTable.length === 0) {
                         const api = JSON.parse(JSON.stringify(Api.checkPandaFailedApi));
-                        api.data.error = 'no panda left';
+                        api.data.error = '不存在熊猫';
                         this.ctx.body = api;
                     }
                     else if (pandaTable.length === 1) {
@@ -540,7 +568,7 @@ class userController extends Controller {
             }
             else {
                 const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
-                api.data.error = 'sender check result null';
+                api.data.error = '发送账户不存在';
                 this.ctx.body = api;
             }
         } catch (e) {
