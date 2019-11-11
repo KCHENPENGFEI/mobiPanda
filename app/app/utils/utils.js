@@ -30,7 +30,7 @@ const characterReadable = {
     burst: [
         '小辣椒',
         '火山少女',
-        '定时炸弹',
+        '暴躁老哥',
         '博尔特',
     ],
     loneliness: [

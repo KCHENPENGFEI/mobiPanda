@@ -24,7 +24,7 @@ class EosService extends Service {
         },
         {
             blocksBehind: 3,
-            expireSeconds: 30   
+            expireSeconds: 60   
         }).then(() => {
             console.log('isuue panda success');
             return {code: 0, msg: ''};
@@ -101,7 +101,7 @@ class EosService extends Service {
         }, 
         {
             blocksBehind: 3,
-            expireSeconds: 30
+            expireSeconds: 60
         }).then(() => {
             console.log('signup success');
             return {code: 0, msg: ''};

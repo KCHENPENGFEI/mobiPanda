@@ -25,8 +25,8 @@ class adminService extends Service {
         let jtStartTime = wechatApi.jsapiTicketTimeStamp;
         let jtUrl = wechatApi.getJaspiTicketUrl;
         // let expiresIn = wechatApi.expiresIn;
-        // console.log('time: ', new Date(time * 1000).getHours());
-        // console.log('jtTime: ', jtStartTime);
+        console.log('time: ', new Date(time * 1000).getHours());
+        console.log('jtTime: ', jtStartTime);
         if (new Date(time * 1000).getHours() === jtStartTime) {
             // no need to upgrade
             return jt;
@@ -42,8 +42,13 @@ class adminService extends Service {
                 if (response.errcode === undefined) {
                     // get access token success
                     at = response.access_token;
+                    wechatApi.accessToken = at;
+                    // console.log("access_token: ", at);
                     jtUrl = 'https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=' + at + '&type=jsapi';
+                    wechatApi.getJaspiTicketUrl = jtUrl;
+                    // console.log("jtUrl: ", jtUrl);
                     atStartTime = time;
+                    wechatApi.accessTokenTimeStamp = atStartTime;
                     console.log('get access token success');
                 }
                 else {
@@ -52,17 +57,20 @@ class adminService extends Service {
                 }
             }
 
-            let response1 = await this.httpGetContent(jtUrl);
-            if (JSON.stringify(response1) === '{}') {
-                console.log('get jsapi ticket failed:', response);
+            let ticketRes = await this.httpGetContent(jtUrl);
+            if (JSON.stringify(ticketRes) === '{}') {
+                console.log('get jsapi ticket failed:', ticketRes);
                 return '';
             }
             else {
-                if (response1.errcode === 0) {
+                if (ticketRes.errcode === 0) {
                     // get ticket success
-                    jt = response.ticket;
+                    jt = ticketRes.ticket;
+                    wechatApi.jsapiTicket = jt;
                     jtStartTime = new Date(time * 1000).getHours();
+                    wechatApi.jsapiTicketTimeStamp = jtStartTime;
                     console.log('get jsapi ticket success');
+                    // console.log('ticket: ', jt);
                     return jt;
                 }
                 else {

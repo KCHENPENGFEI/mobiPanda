@@ -73,7 +73,7 @@ class adminController extends Controller {
                     }
                     else {
                         const api = JSON.parse(JSON.stringify(Api.loginFailedApi));
-                        api.data.error = getAccessTokenResponse.errmsg;
+                        api.data.error = response1.errmsg;
                         this.ctx.body = api;
                         return;
                     }
@@ -81,7 +81,7 @@ class adminController extends Controller {
             }
             else {
                 const api = JSON.parse(JSON.stringify(Api.loginFailedApi));
-                api.data.error = getAccessTokenResponse.errmsg;
+                api.data.error = response.errmsg;
                 this.ctx.body = api;
                 return;
             }
@@ -91,7 +91,7 @@ class adminController extends Controller {
     async getSign() {
         let msg = this.ctx.query;
         let url = msg.url;
-        // console.log("getSign");
+        console.log("getSign");
         let now = Date.parse(new Date()) / 1000;
         let nonceStr = Utils.generateRandomPartGeneId(10);
         let jsapiTicket = await this.service.admin.getTicket(now);

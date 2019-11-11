@@ -5,6 +5,7 @@ const Api = require('../api/api');
 const Utils = require('../utils/utils');
 const serviceConfig = require('../service/config');
 const BN = require('bn.js');
+const wechat = require('../service/wechatApiConfig');
 
 var debug = true;
 
@@ -28,19 +29,19 @@ class userController extends Controller {
             //         return;
             //     }
             // }
-            // // generate user's account
-            // let time1 = new Date();
-            // const signupResult = await this.ctx.service.eosService.createNewAccount(EOSAccount, EOSPublicKey);
-            // // const signupResult = {code: 0};
-            // let time2 = new Date();
-            // console.log('create account: ', time2.getTime() - time1.getTime());
-            // if (signupResult.code === -1) {
-            //     // signup failed
-            //     const api = JSON.parse(JSON.stringify(Api.signupFailedApi));
-            //     api.data.error = signupResult.msg;
-            //     this.ctx.body = api;
-            //     return;
-            // }
+            // generate user's account
+            let time1 = new Date();
+            const signupResult = await this.ctx.service.eosService.createNewAccount(EOSAccount, EOSPublicKey);
+            // const signupResult = {code: 0};
+            let time2 = new Date();
+            console.log('create account: ', time2.getTime() - time1.getTime());
+            if (signupResult.code === -1) {
+                // signup failed
+                const api = JSON.parse(JSON.stringify(Api.signupFailedApi));
+                api.data.error = '该用户名已被注册';
+                this.ctx.body = api;
+                return;
+            }
 
             // signup success
             // generate panda's gene
@@ -51,7 +52,7 @@ class userController extends Controller {
             let tagsList = parseResult.tagsList;
             let geneIdMain = geneId.substring(0, 8);
 
-            const insertResult = await this.service.users.insertUserInfo(openid, EOSAccount, EOSPublicKey, answer);
+            const insertResult = await this.service.users.insertUserInfo(openid, EOSAccount, EOSPublicKey, String(answer));
             if (!insertResult) {
                 // database error
                 const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
@@ -227,7 +228,7 @@ class userController extends Controller {
                 }
                 const EOSAccount = result.EOSAccount;
                 const geneId = result.geneId;
-                const character = result.character;
+                // const character = result.character;
                 const tagsList = result.tagsList;
 
                 // issue panda
@@ -305,6 +306,12 @@ class userController extends Controller {
             // const EOSAccountList = await this.ctx.service.users.checkEOSAccount(openid);
             // const EOSAccount = EOSAccountList[0].EOSAccount;
             const resultList = await this.ctx.service.users.checkPandaAccountAndAnswer(openid);
+            if (resultList.length === 0) {
+                const api = JSON.parse(JSON.stringify(Api.exceptionApi));
+                api.data.error = '账户不存在';
+                this.ctx.body = api;
+                return;
+            }
             const result = resultList[0];
             const EOSAccount = result.EOSAccount;
             const answerStr = result.answer;
@@ -313,18 +320,7 @@ class userController extends Controller {
             answer = answerLsit.map(item => {
                 return +item;
             });
-            let convertedAnswer = Utils.answerConvert(answer);
-            let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
-            let character = {};
-            for (var i = 0; i < convertedAnswer.length; i++) {
-                if (i === 0) {
-                    continue;
-                }
-                else{
-                    const cha = characterList[i - 1];
-                    character[cha] = convertedAnswer[i];
-                }
-            }
+            let character = await this.service.users.answer2Cha(answer);
             const pandasList = await this.ctx.service.eosService.checkPanda(EOSAccount);
             const api = JSON.parse(JSON.stringify(Api.pandaListSuccessApi));
             for (var i = 0; i < pandasList.length; i++) {
@@ -332,20 +328,7 @@ class userController extends Controller {
                 let uuid = panda.uuid;
                 let gene = panda.gene;
                 let createTime = panda.createtime;
-                const characterTags = Utils.KMaxCharacter(character, 3);
-                const index = Utils.geneToSeed(gene.slice(8, 20));
-                const tags = characterTags.map(charac => {
-                    const texts = Utils.characterReadable[charac]
-                    return texts[index % texts.length];
-                });
-                let tagsList = [];
-                for (let k = 0; k < tags.length; k++) {
-                    let tag = {
-                        tagName: tags[k],
-                        rare: tags[k] in Utils.rare
-                    };
-                    tagsList.push(tag);
-                }
+                let tagsList = await this.service.users.genTags(character, gene);
                 api.data.pandaList.push({
                     gene: gene,
                     uuid: uuid,
@@ -368,6 +351,8 @@ class userController extends Controller {
             const getPandaResult = await this.service.eosService.checkPandaByUuid(uuid);
             let gene = getPandaResult[0].gene;
             let owner = getPandaResult[0].owner;
+            let createTime = getPandaResult[0].createtime;
+            // get answer
             let result = await this.service.users.checkAnswerByAccount(owner);
             const answerStr = result.answer;
             const answerLsit = answerStr.split(',');
@@ -375,38 +360,41 @@ class userController extends Controller {
             answer = answerLsit.map(item => {
                 return +item;
             });
-            let convertedAnswer = Utils.answerConvert(answer);
-            let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
-            let character = {};
-            for (var i = 0; i < convertedAnswer.length; i++) {
-                if (i === 0) {
-                    continue;
-                }
-                else{
-                    const cha = characterList[i - 1];
-                    character[cha] = convertedAnswer[i];
-                }
-            }
-            const characterTags = Utils.KMaxCharacter(character, 3);
-            const index = Utils.geneToSeed(gene.slice(8, 20));
-            const tags = characterTags.map(charac => {
-                const texts = Utils.characterReadable[charac]
-                return texts[index % texts.length];
-            });
-            let createTime = getPandaResult[0].createtime;
+
+            let character = await this.service.users.answer2Cha(answer);
+            let tagsList = await this.service.users.genTags(character, gene);
+            // let convertedAnswer = Utils.answerConvert(answer);
+            // let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+            // let character = {};
+            // for (var i = 0; i < convertedAnswer.length; i++) {
+            //     if (i === 0) {
+            //         continue;
+            //     }
+            //     else{
+            //         const cha = characterList[i - 1];
+            //         character[cha] = convertedAnswer[i];
+            //     }
+            // }
+            // const characterTags = Utils.KMaxCharacter(character, 3);
+            // const index = Utils.geneToSeed(gene.slice(8, 20));
+            // const tags = characterTags.map(charac => {
+            //     const texts = Utils.characterReadable[charac]
+            //     return texts[index % texts.length];
+            // });
+            
             const api = JSON.parse(JSON.stringify(Api.getPandaSuccessApi));
             api.data.character = character;
             api.data.panda.uuid = uuid;
             api.data.panda.gene = gene;
             api.data.panda.createTime = createTime;
-            let tagsList = [];
-            for (let k = 0; k < tags.length; k++) {
-                let tag = {
-                    tagName: tags[k],
-                    rare: tags[k] in Utils.rare
-                };
-                tagsList.push(tag);
-            }
+            // let tagsList = [];
+            // for (let k = 0; k < tags.length; k++) {
+            //     let tag = {
+            //         tagName: tags[k],
+            //         rare: tags[k] in Utils.rare
+            //     };
+            //     tagsList.push(tag);
+            // }
             api.data.panda.tags = tagsList;
             this.ctx.body = api;
         } catch (e) {
@@ -429,18 +417,7 @@ class userController extends Controller {
             answer = answerLsit.map(item => {
                 return +item;
             });
-            const convertedAnswer = Utils.answerConvert(answer);
-            let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
-            let character = {};
-            for (var i = 0; i < convertedAnswer.length; i++) {
-                if (i === 0) {
-                    continue;
-                }
-                else{
-                    const cha = characterList[i - 1];
-                    character[cha] = convertedAnswer[i];
-                }
-            }
+            let character = await this.service.answer2Cha(answer);
             const api = JSON.parse(JSON.stringify(Api.getCharacterSuccessApi));
             api.data.character = character;
             this.ctx.body = api;
@@ -459,7 +436,7 @@ class userController extends Controller {
         try {
             const receiverExist = await this.ctx.service.users.checkOpenId(receiverEOSAccount);
             if (receiverExist.length === 0) {
-                let e = {message: 'receiver not exist'};
+                let e = {message: '接收账户不存在'};
                 throw e;
             }
             const result = await this.ctx.service.users.checkAnswerByAccount(senderEOSAccount);
@@ -504,18 +481,7 @@ class userController extends Controller {
                     answer = answerLsit.map(item => {
                         return +item;
                     });
-                    const convertedAnswer = Utils.answerConvert(answer);
-                    let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
-                    let character = {};
-                    for (let j = 0; j < convertedAnswer.length; j++) {
-                        if (j === 0) {
-                            continue;
-                        }
-                        else{
-                            const cha = characterList[j - 1];
-                            character[cha] = convertedAnswer[j];
-                        }
-                    }
+                    let character = await this.service.users.answer2Cha(answer);
                     api.data.inBoxes.push({
                         EOSAccount: senderEOSAccount,
                         uuid: uuid,
@@ -523,11 +489,13 @@ class userController extends Controller {
                     });
                 }
                 this.ctx.body = api;
+                return;
             }
             else {
                 // const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
                 // api.data.error = 'check result null';
                 this.ctx.body = api;
+                return;
             }
         } catch (e) {
             const exceptionApi = JSON.parse(JSON.stringify(Api.exceptionApi));
@@ -554,34 +522,45 @@ class userController extends Controller {
         // let uuid = msg.uuid;
         // const result = await this.service.users.deleteInBoxes(receiverEOSAccount, senderEOSAccount, uuid);
         // this.ctx.body = {result};
-        let answer = msg.answer;
-        let convertedAnswer = Utils.answerConvert(answer);
-        let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
-        let character = {};
-        for (var i = 0; i < convertedAnswer.length; i++) {
-            if (i === 0) {
-                continue;
-            }
-            else{
-                const cha = characterList[i - 1];
-                character[cha] = convertedAnswer[i];
-            }
-        }
-        let geneId = Utils.generateGeneId(answer);
-        const characterTags = Utils.KMaxCharacter(character, 3);
-        const index = Utils.geneToSeed(geneId.slice(8, 20));
-        const tags = characterTags.map(charac => {
-            const texts = Utils.characterReadable[charac]
-            return texts[index % texts.length];
-        });
-        this.ctx.body = {
-            character: character,
-            geneId: geneId,
-            characterTags: characterTags,
-            index: index,
-            tag: tags,
-            rare: tags[2] in Utils.rare
-        }
+        // let answer = msg.answer;
+        // let convertedAnswer = Utils.answerConvert(answer);
+        // let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+        // let character = {};
+        // for (var i = 0; i < convertedAnswer.length; i++) {
+        //     if (i === 0) {
+        //         continue;
+        //     }
+        //     else{
+        //         const cha = characterList[i - 1];
+        //         character[cha] = convertedAnswer[i];
+        //     }
+        // }
+        // let geneId = Utils.generateGeneId(answer);
+        // const characterTags = Utils.KMaxCharacter(character, 3);
+        // const index = Utils.geneToSeed(geneId.slice(8, 20));
+        // const tags = characterTags.map(charac => {
+        //     const texts = Utils.characterReadable[charac]
+        //     return texts[index % texts.length];
+        // });
+        // this.ctx.body = {
+        //     character: character,
+        //     geneId: geneId,
+        //     characterTags: characterTags,
+        //     index: index,
+        //     tag: tags,
+        //     rare: tags[2] in Utils.rare
+        // }
+        // const api = Api.loginFailedApi;
+        // console.log('api: ', api);
+        // api.msg = 'aaaaa';
+        // console.log('api: ', api);
+        // console.log(Api.loginFailedApi);
+        var a = wechat.jsapiTicketTimeStamp;
+        console.log('a: ', a);
+        a = 10;
+        wechat.jsapiTicketTimeStamp = 100;
+        console.log('a: ', a);
+        console.log('we: ', wechat.jsapiTicketTimeStamp);
     }
 }
 

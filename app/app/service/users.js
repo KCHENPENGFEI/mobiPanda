@@ -142,6 +142,40 @@ class userService extends Service {
         };
     }
 
+    async answer2Cha(answer) {
+        let convertedAnswer = Utils.answerConvert(answer);
+        let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
+        let character = {};
+        for (var i = 0; i < convertedAnswer.length; i++) {
+            if (i === 0) {
+                continue;
+            }
+            else {
+                const cha = characterList[i - 1];
+                character[cha] = convertedAnswer[i];
+            }
+        }
+        return character;
+    }
+
+    async genTags(character, geneId) {
+        const characterTags = Utils.KMaxCharacter(character, 3);
+        const index = Utils.geneToSeed(geneId.slice(8, 20));
+        const tags = characterTags.map(charac => {
+            const texts = Utils.characterReadable[charac]
+            return texts[index % texts.length];
+        });
+        let tagsList = [];
+        for (let k = 0; k < tags.length; k++) {
+            let tag = {
+                tagName: tags[k],
+                rare: tags[k] in Utils.rare
+            };
+            tagsList.push(tag);
+        }
+        return tagsList;
+    }
+
     async quantityToTimestamp(rankTb, openid) {
         const quaResult = await this.checkPandaQuantity(openid);
         if (quaResult.length === 0) {
@@ -170,16 +204,6 @@ class userService extends Service {
             timestamp: timestamp
         };
     }
-    // async login(openid) {
-    //     const loginResult = await this.app.mysql.get(table, { openid: openid });
-    //     return loginResult;
-    // }
-
-    // async register(openid) {
-    //     const registerResult = await this.app.mysql.insert(table, {openid: openid});
-    //     const insertSuccess = registerResult.affectedRows === 1;
-    //     return insertSuccess;
-    // }
 
     async insertUserInfo(openid, EOSAccount, EOSPublicKey, answer) {
         const row = {
