@@ -6,6 +6,7 @@ const Utils = require('../utils/utils');
 const serviceConfig = require('../service/config');
 const BN = require('bn.js');
 const wechat = require('../service/wechatApiConfig');
+const sha1 = require('js-sha1');
 
 var debug = true;
 
@@ -363,38 +364,12 @@ class userController extends Controller {
 
             let character = await this.service.users.answer2Cha(answer);
             let tagsList = await this.service.users.genTags(character, gene);
-            // let convertedAnswer = Utils.answerConvert(answer);
-            // let characterList = ['controller', 'burst', 'loneliness', 'buddhist', 'openness'];
-            // let character = {};
-            // for (var i = 0; i < convertedAnswer.length; i++) {
-            //     if (i === 0) {
-            //         continue;
-            //     }
-            //     else{
-            //         const cha = characterList[i - 1];
-            //         character[cha] = convertedAnswer[i];
-            //     }
-            // }
-            // const characterTags = Utils.KMaxCharacter(character, 3);
-            // const index = Utils.geneToSeed(gene.slice(8, 20));
-            // const tags = characterTags.map(charac => {
-            //     const texts = Utils.characterReadable[charac]
-            //     return texts[index % texts.length];
-            // });
             
             const api = JSON.parse(JSON.stringify(Api.getPandaSuccessApi));
             api.data.character = character;
             api.data.panda.uuid = uuid;
             api.data.panda.gene = gene;
             api.data.panda.createTime = createTime;
-            // let tagsList = [];
-            // for (let k = 0; k < tags.length; k++) {
-            //     let tag = {
-            //         tagName: tags[k],
-            //         rare: tags[k] in Utils.rare
-            //     };
-            //     tagsList.push(tag);
-            // }
             api.data.panda.tags = tagsList;
             this.ctx.body = api;
         } catch (e) {
@@ -555,12 +530,38 @@ class userController extends Controller {
         // api.msg = 'aaaaa';
         // console.log('api: ', api);
         // console.log(Api.loginFailedApi);
-        var a = wechat.jsapiTicketTimeStamp;
-        console.log('a: ', a);
-        a = 10;
-        wechat.jsapiTicketTimeStamp = 100;
-        console.log('a: ', a);
-        console.log('we: ', wechat.jsapiTicketTimeStamp);
+        // var a = wechat.jsapiTicketTimeStamp;
+        // console.log('a: ', a);
+        // a = 10;
+        // wechat.jsapiTicketTimeStamp = 100;
+        // console.log('a: ', a);
+        // console.log('we: ', wechat.jsapiTicketTimeStamp);
+        let answer = msg.answer;
+        let res = await this.service.users.parseAnswer(answer);
+        let geneId = res.geneId;
+        let character = res.character;
+        const characterTags = Utils.KMaxCharacter(character, 3);
+        const seed = Utils.geneToSeed(geneId.slice(8, 20));
+        let index = [];
+        for (let i = 0; i < 3; i++) {
+            index.push(Math.floor(parseInt(seed[i], 16) / 2));
+        }
+        const tags = characterTags.map((charac, k) => {
+            const texts = Utils.characterReadable[charac];
+            return texts[index[k]];
+        });
+        // const tags = characterTags.map(charac => {
+        //     const texts = Utils.characterReadable[charac]
+        //     return texts[index % texts.length];
+        // });
+        console.log('characterTags: ', characterTags);
+        console.log('seed: ', seed);
+        console.log('index: ', index);
+        console.log('tags: ', tags);
+        let genePart = geneId.slice(8, 20);
+        let geneSha = sha1(genePart);
+        console.log('geneSha: ', geneSha);
+        console.log('length: ', geneSha.length);
     }
 }
 

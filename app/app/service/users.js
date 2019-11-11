@@ -65,10 +65,14 @@ class userService extends Service {
         }
         let geneId = Utils.generateGeneId(answer);
         const characterTags = Utils.KMaxCharacter(character, 3);
-        const index = Utils.geneToSeed(geneId.slice(8, 20));
-        const tags = characterTags.map(charac => {
-            const texts = Utils.characterReadable[charac]
-            return texts[index % texts.length];
+        const seed = Utils.geneToSeed(geneId.slice(8, 20));
+        let index = [];
+        for (let i = 0; i < 3; i++) {
+            index.push(Math.floor(parseInt(seed[i], 16) / 2));
+        }
+        const tags = characterTags.map((charac, k) => {
+            const texts = Utils.characterReadable[charac];
+            return texts[index[k]];
         });
         let tagsList = [];
         for (let k = 0; k < tags.length; k++) {
@@ -121,10 +125,14 @@ class userService extends Service {
         }
         let geneId = Utils.generateRandomGeneId(genderId);
         const characterTags = Utils.KMaxCharacter(character, 3);
-        const index = Utils.geneToSeed(geneId.slice(8, 20));
-        const tags = characterTags.map(charac => {
-            const texts = Utils.characterReadable[charac]
-            return texts[index % texts.length];
+        const seed = Utils.geneToSeed(geneId.slice(8, 20));
+        let index = [];
+        for (let i = 0; i < 3; i++) {
+            index.push(Math.floor(parseInt(seed[i], 16) / 2));
+        }
+        const tags = characterTags.map((charac, k) => {
+            const texts = Utils.characterReadable[charac];
+            return texts[index[k]];
         });
         let tagsList = [];
         for (let k = 0; k < tags.length; k++) {
@@ -160,10 +168,14 @@ class userService extends Service {
 
     async genTags(character, geneId) {
         const characterTags = Utils.KMaxCharacter(character, 3);
-        const index = Utils.geneToSeed(geneId.slice(8, 20));
-        const tags = characterTags.map(charac => {
-            const texts = Utils.characterReadable[charac]
-            return texts[index % texts.length];
+        const seed = Utils.geneToSeed(geneId.slice(8, 20));
+        let index = [];
+        for (let i = 0; i < 3; i++) {
+            index.push(Math.floor(parseInt(seed[i], 16) / 2));
+        }
+        const tags = characterTags.map((charac, k) => {
+            const texts = Utils.characterReadable[charac];
+            return texts[index[k]];
         });
         let tagsList = [];
         for (let k = 0; k < tags.length; k++) {

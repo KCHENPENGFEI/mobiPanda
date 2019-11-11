@@ -1,3 +1,4 @@
+const sha1 = require('js-sha1');
 
 const characterIndex = {
     controllerIndex: [2.5, 5, 3, 3.5],
@@ -25,13 +26,20 @@ const characterReadable = {
         '在世诸葛',
         '钢铁侠',
         '小当家',
-        '灭霸'
+        '灭霸',
+        '掌控者',
+        '傀儡师',
+        '王子'
     ],
     burst: [
-        '小辣椒',
+        '魔鬼辣椒',
         '火山少女',
         '暴躁老哥',
         '博尔特',
+        '天使魔鬼',
+        '窜天熊',
+        '胖虎',
+        '宫本武藏'
     ],
     loneliness: [
         '孤独患者',
@@ -40,6 +48,8 @@ const characterReadable = {
         '葫芦娃',
         '旅行青蛙',
         '布偶猫',
+        '键盘侠',
+        '老人与海'
     ],
     buddhist: [
         '佛系青年',
@@ -48,21 +58,25 @@ const characterReadable = {
         '卡比兽',
         '铁憨憨',
         '树懒',
-        '沙师弟'
+        '可达鸭',
+        '唐三藏'
     ],
     openness: [
         '中本聪',
         '天马行空',
         '暴风少年',
         '小天才',
-        '拓荒者'
+        '拓荒者',
+        '多啦A梦',
+        '柯南',
+        '狄仁杰'
     ]
 }
 
 const rare = {
-    '佛系青年': 1,
+    '可达鸭': 1,
     '中本聪': 1,
-    '小辣椒': 1,
+    '鲨鱼辣椒': 1,
     '钢铁侠': 1,
     '葫芦娃': 1
 }
@@ -147,11 +161,7 @@ var generateRandomGeneId = (genderId) => {
 };
 
 var geneToSeed = (gene) => {
-    let num = 0;
-    for (let i = 0; i < gene.length; i++) {
-        num += gene.charCodeAt(i);
-    }
-    return num;
+    return sha1(gene);
 }
 
 var KMaxCharacter = (character, k) => {
