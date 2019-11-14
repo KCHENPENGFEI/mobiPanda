@@ -2,11 +2,13 @@
 
 const Controller = require('egg').Controller;
 const Api = require('../api/api');
-const Utils = require('../utils/utils');
+// const Utils = require('../utils/utils');
 const serviceConfig = require('../service/config');
-const BN = require('bn.js');
-const wechat = require('../service/wechatApiConfig');
-const sha1 = require('js-sha1');
+const cache = require('../service/lruCache').cache;
+// const BN = require('bn.js');
+// const wechat = require('../service/wechatApiConfig');
+// const sha1 = require('js-sha1');
+// var LRUMap = require('lru_map').LRUMap;
 
 var debug = true;
 
@@ -123,6 +125,7 @@ class userController extends Controller {
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = api;
             return;
         }
@@ -180,6 +183,7 @@ class userController extends Controller {
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = api;
             return;
         }
@@ -285,16 +289,17 @@ class userController extends Controller {
             }
             else {
                 // issue failed
-                const api = JSON.parse(JSON.stringify(Api.checkIssueSuccessApi));
+                const api = JSON.parse(JSON.stringify(Api.checkPandaFailedApi));
                 api.msg = 'wait for next time to create';
-                api.data.status = false;
-                api.data.nextTime = lastCreateTime + timestamp;
+                api.data.error = 'wait for next time to create';
+                // console.log('now: ', Date.parse(new Date()) / 1000);
                 this.ctx.body = api;
                 return;
             }
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = api;
             return;
         }
@@ -341,7 +346,9 @@ class userController extends Controller {
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = api;
+            return;
         }
     }
 
@@ -375,7 +382,9 @@ class userController extends Controller {
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = api;
+            return;
         }
     }
 
@@ -392,14 +401,16 @@ class userController extends Controller {
             answer = answerLsit.map(item => {
                 return +item;
             });
-            let character = await this.service.answer2Cha(answer);
+            let character = await this.service.users.answer2Cha(answer);
             const api = JSON.parse(JSON.stringify(Api.getCharacterSuccessApi));
             api.data.character = character;
             this.ctx.body = api;
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = api;
+            return;
         }
     }
 
@@ -433,7 +444,9 @@ class userController extends Controller {
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = api;
+            return;
         }
     }
 
@@ -475,7 +488,9 @@ class userController extends Controller {
         } catch (e) {
             const exceptionApi = JSON.parse(JSON.stringify(Api.exceptionApi));
             exceptionApi.data.error = e.message;
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = exceptionApi;
+            return;
         }
     }
 
@@ -536,32 +551,59 @@ class userController extends Controller {
         // wechat.jsapiTicketTimeStamp = 100;
         // console.log('a: ', a);
         // console.log('we: ', wechat.jsapiTicketTimeStamp);
-        let answer = msg.answer;
-        let res = await this.service.users.parseAnswer(answer);
-        let geneId = res.geneId;
-        let character = res.character;
-        const characterTags = Utils.KMaxCharacter(character, 3);
-        const seed = Utils.geneToSeed(geneId.slice(8, 20));
-        let index = [];
-        for (let i = 0; i < 3; i++) {
-            index.push(Math.floor(parseInt(seed[i], 16) / 2));
-        }
-        const tags = characterTags.map((charac, k) => {
-            const texts = Utils.characterReadable[charac];
-            return texts[index[k]];
-        });
-        // const tags = characterTags.map(charac => {
-        //     const texts = Utils.characterReadable[charac]
-        //     return texts[index % texts.length];
+        // let answer = msg.answer;
+        // let res = await this.service.users.parseAnswer(answer);
+        // let geneId = res.geneId;
+        // let character = res.character;
+        // const characterTags = Utils.KMaxCharacter(character, 3);
+        // const seed = Utils.geneToSeed(geneId.slice(8, 20));
+        // let index = [];
+        // for (let i = 0; i < 3; i++) {
+        //     index.push(Math.floor(parseInt(seed[i], 16) / 2));
+        // }
+        // const tags = characterTags.map((charac, k) => {
+        //     const texts = Utils.characterReadable[charac];
+        //     return texts[index[k]];
         // });
-        console.log('characterTags: ', characterTags);
-        console.log('seed: ', seed);
-        console.log('index: ', index);
-        console.log('tags: ', tags);
-        let genePart = geneId.slice(8, 20);
-        let geneSha = sha1(genePart);
-        console.log('geneSha: ', geneSha);
-        console.log('length: ', geneSha.length);
+        // // const tags = characterTags.map(charac => {
+        // //     const texts = Utils.characterReadable[charac]
+        // //     return texts[index % texts.length];
+        // // });
+        // console.log('characterTags: ', characterTags);
+        // console.log('seed: ', seed);
+        // console.log('index: ', index);
+        // console.log('tags: ', tags);
+        // let genePart = geneId.slice(8, 20);
+        // let geneSha = sha1(genePart);
+        // console.log('geneSha: ', geneSha);
+        // console.log('length: ', geneSha.length);
+        // let a = this.app.config.env;
+        // console.log(a);
+
+        // let c = new LRUMap(3);
+        // c.set('adam',   29)
+        // c.set('john',   26)
+        // c.set('angela', 24)
+        // console.log(c.toString())        // -> "adam:29 < john:26 < angela:24"
+        // console.log(c.get('john'))       // -> 26
+
+        // Now 'john' is the most recently used entry, since we just requested it
+        // console.log(c.toString())        // -> "adam:29 < angela:24 < john:26"
+        // c.set('zorro', 141) // -> {key:adam, value:29}
+        
+        // Because we only have room for 3 entries, adding 'zorro' caused 'adam'
+        // to be removed in order to make room for the new entry
+        // console.log(c.toString())        // -> "angela:24 < john:26 < zorro:141"
+        cache.set('admin', 20);
+        cache.set('chen', 22);
+        cache.set('peng', 23);
+        cache.set('fei', 24);
+        console.log('cache: ', cache.toString());
+        cache.get('peng');
+        console.log(cache.toString());
+        let i = cache.get('hh');
+        console.log('i: ', i);
+        console.log(cache.toString());
     }
 }
 

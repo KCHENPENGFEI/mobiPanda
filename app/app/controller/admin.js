@@ -8,6 +8,7 @@ const ecc = require('eosjs-ecc');
 const sha1 = require('js-sha1');
 const OSS = require('ali-oss');
 const ossConfig = require('../service/ossConfig');
+const cache = require('../service/lruCache').cache;
 const STS = OSS.STS;
 const sts = new STS({
     accessKeyId: ossConfig.accessKeyId,
@@ -145,20 +146,22 @@ class adminController extends Controller {
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = 'get oss token failed';
-            console.log('error: ', e.message);
+            // console.log('error: ', e.message);
+            this.ctx.logger.error(new Date(), e.message);
             this.ctx.body = api;
+            return;
         }
     }
     
     async register() {
         let msg = this.ctx.request.body;
-        let account = msg.account;
-        let priKey = await ecc.randomKey();
-        let pubKey = ecc.privateToPublic(priKey);
-        console.log(priKey);
-        console.log(pubKey);
-        let signupResult = await this.ctx.service.eosService.createNewAccount(account, pubKey);
-        this.ctx.body = signupResult;
+        // let account = msg.account;
+        // let priKey = await ecc.randomKey();
+        // let pubKey = ecc.privateToPublic(priKey);
+        // console.log(priKey);
+        // console.log(pubKey);
+        // let signupResult = await this.ctx.service.eosService.createNewAccount(account, pubKey);
+        // this.ctx.body = signupResult;
     }
 }
 

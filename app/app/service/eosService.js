@@ -30,6 +30,7 @@ class EosService extends Service {
             return {code: 0, msg: ''};
         }).catch(error => {
             console.log('issue panda failed, ' + error);
+            this.ctx.logger.error(new Date(), error.message);
             return {code: -1, msg: error.message};
         });
         return result;
@@ -107,6 +108,7 @@ class EosService extends Service {
             return {code: 0, msg: ''};
         }).catch(error => {
             console.log('signup failed, ' + error.message);
+            this.ctx.logger.error(new Date(), error.message);
             return {code: -1, msg: error.message};
         });
         // const result = await serviceConfig.api.transaction( tr => {

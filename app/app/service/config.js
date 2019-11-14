@@ -18,10 +18,10 @@ const endPoints = [
     'http://api.kylin.eosbeijing.one:8880'
   ];
 // const admin = 'mobiuspanda1';
-const admin = 'signuphelper';
-const adminPublicKey = 'EOS52rVr4RMqW9NJir3r7dW4j33Yh7oiATCM2gKM2SpQobfeysaRZ';
+const admin = 'mobipanda111';
+const adminPublicKey = 'EOS8WYdKihd7R55ABTFaGEirjsvdgj635XBNyPW6cVrkeJHrznkFT';
 // const privateKey1 = "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3";
-const privateKey1 = '5JnLe2Xd6JFDSnwC9qCenaagtKjfwNTFPsHz2CcPZTXmrczaFKs';
+const privateKey1 = '5JZpyymzzFFNnfJi56PVd7hpGRUwYkhmqGt6eep3zXZMQHqDP4V';
 const privateKeys = [privateKey1];
 const signatureProvider = new JsSignatureProvider(privateKeys);
 const rpc = new JsonRpc(endPoints[4], { fetch });

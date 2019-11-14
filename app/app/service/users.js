@@ -2,6 +2,7 @@
 
 const Service = require('egg').Service;
 const Utils = require('../utils/utils');
+const cache = require('../service/lruCache').cache;
 
 const table = 'tb_pandas';
 const inBoxesTable = 'tb_inBoxes';
@@ -9,12 +10,19 @@ const transferInfoTable = 'tb_transferInfo';
 
 class userService extends Service {
     async loginAndRegister(openid) {
+        // check cache first
+        let EOSAccount = cache.get(openid);
+        if (EOSAccount !== undefined) {
+            return {EOSAccount};
+        }
         const loginResult = await this.app.mysql.get(table, {openid: openid});
         if (loginResult === null) {
             // do register
             const registerResult = await this.app.mysql.insert(table, {openid: openid});
             const insertSuccess = registerResult.affectedRows === 1;
             if (insertSuccess) {
+                // insert into cache
+                cache.set(openid, '');
                 return {EOSAccount: '', openid: openid};
             }
             else {
@@ -22,6 +30,8 @@ class userService extends Service {
             }
         }
         else {
+            // insert into cache
+            cache.set(openid, loginResult.EOSAccount);
             return loginResult;
         }
     }
@@ -218,6 +228,9 @@ class userService extends Service {
     }
 
     async insertUserInfo(openid, EOSAccount, EOSPublicKey, answer) {
+        // insert into cache
+        cache.set(openid, EOSAccount);
+        
         const row = {
             EOSAccount: EOSAccount,
             EOSPublicKey: EOSPublicKey,
