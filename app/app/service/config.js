@@ -29,14 +29,14 @@ const api = new Api({ rpc, signatureProvider, textDecoder: new TextDecoder(), te
 const symbol = 'MBPD';
 const tokenTable = 'tokens';
 const resource = {
-  bytes: 50 * 1024,
+  bytes: 30 * 1024,
   balance: '1.0000 EOS',
-  stake_net_quantity: '2.0000 EOS',
-  stake_cpu_quantity: '2.0000 EOS',
+  stake_net_quantity: '1.0000 EOS',
+  stake_cpu_quantity: '1.0000 EOS',
 };
 
 var config = {
-    endPoint: endPoints[0],
+    endPoint: endPoints[4],
     admin: admin,
     adminPublicKey: adminPublicKey,
     privateKeys: privateKeys,

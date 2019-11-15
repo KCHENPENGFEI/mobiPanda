@@ -2,7 +2,7 @@
 
 const Controller = require('egg').Controller;
 const Api = require('../api/api');
-// const Utils = require('../utils/utils');
+const Utils = require('../utils/utils');
 const serviceConfig = require('../service/config');
 const cache = require('../service/lruCache').cache;
 // const BN = require('bn.js');
@@ -10,7 +10,7 @@ const cache = require('../service/lruCache').cache;
 // const sha1 = require('js-sha1');
 // var LRUMap = require('lru_map').LRUMap;
 
-var debug = true;
+var debug = false;
 
 class userController extends Controller {
     async issue() {
@@ -46,6 +46,17 @@ class userController extends Controller {
                 return;
             }
 
+            await Utils.sleep(1000);
+
+            const getAccountRes = await this.service.eosService.getAccount(EOSAccount);
+            if (getAccountRes.code === -1) {
+                // signup failed
+                const api = JSON.parse(JSON.stringify(Api.signupFailedApi));
+                api.data.error = '网络问题，注册失败';
+                this.ctx.body = api;
+                return;
+            }
+
             // signup success
             // generate panda's gene
             // storage user's data
@@ -55,14 +66,14 @@ class userController extends Controller {
             let tagsList = parseResult.tagsList;
             let geneIdMain = geneId.substring(0, 8);
 
-            const insertResult = await this.service.users.insertUserInfo(openid, EOSAccount, EOSPublicKey, String(answer));
-            if (!insertResult) {
-                // database error
-                const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
-                api.data.error = '用户注册数据插入失败';
-                this.ctx.body = api;
-                return;
-            }
+            // const insertResult = await this.service.users.insertUserInfo(openid, EOSAccount, EOSPublicKey, String(answer));
+            // if (!insertResult) {
+            //     // database error
+            //     const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
+            //     api.data.error = '用户注册数据插入失败';
+            //     this.ctx.body = api;
+            //     return;
+            // }
 
             let time3 = new Date();
             const issueResult = await this.ctx.service.eosService.issuePanda(EOSAccount, serviceConfig.symbol, ['panda'], geneId);
@@ -77,14 +88,14 @@ class userController extends Controller {
                 return;
             }
 
-            const firstIssueResult = await this.ctx.service.users.firstIssuePanda(openid, geneIdMain);
-            if (!firstIssueResult) {
-                // database error
-                const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
-                api.data.error = '熊猫基因数据插入失败';
-                this.ctx.body = api;
-                return;
-            }
+            // const firstIssueResult = await this.ctx.service.users.firstIssuePanda(openid, geneIdMain);
+            // if (!firstIssueResult) {
+            //     // database error
+            //     const api = JSON.parse(JSON.stringify(Api.databaseErrorApi));
+            //     api.data.error = '熊猫基因数据插入失败';
+            //     this.ctx.body = api;
+            //     return;
+            // }
 
             // issue success
             // get panda info
@@ -100,10 +111,12 @@ class userController extends Controller {
                 return;
             }
             else if (pandaTable.length === 1) {
+                const id = pandaTable[0].id;
                 const uuid = pandaTable[0].uuid;
                 const createTime = pandaTable[0].createtime;
                 const api = JSON.parse(JSON.stringify(Api.issuePandaSuccessApi));
                 api.data.character = character;
+                api.data.panda.id = id;
                 api.data.panda.uuid = uuid;
                 api.data.panda.gene = geneId;
                 api.data.panda.createTime = createTime;
@@ -256,9 +269,11 @@ class userController extends Controller {
                     return;
                 }
                 else if (pandaTable.length === 1) {
+                    const id = pandaTable[0].id;
                     const uuid = pandaTable[0].uuid;
                     const createTime = pandaTable[0].createtime;
                     const api = JSON.parse(JSON.stringify(Api.issuePandaAgainSuccessApi));
+                    api.data.panda.id = id;
                     api.data.panda.uuid = uuid;
                     api.data.panda.gene = geneId;
                     api.data.panda.createTime = createTime;
@@ -275,9 +290,11 @@ class userController extends Controller {
                             break;
                         }
                     }
+                    const id = pandaTable[i].id;
                     const uuid = pandaTable[i].uuid;
                     const createTime = pandaTable[i].createtime;
                     const api = JSON.parse(JSON.stringify(Api.issuePandaSuccessApi));
+                    api.data.panda.id = id;
                     api.data.panda.uuid = uuid;
                     api.data.panda.gene = geneId;
                     api.data.panda.createTime = createTime;
@@ -331,11 +348,29 @@ class userController extends Controller {
             const api = JSON.parse(JSON.stringify(Api.pandaListSuccessApi));
             for (var i = 0; i < pandasList.length; i++) {
                 let panda = pandasList[i];
+                let id = panda.id;
                 let uuid = panda.uuid;
                 let gene = panda.gene;
                 let createTime = panda.createtime;
-                let tagsList = await this.service.users.genTags(character, gene);
+                let tagsList = [];
+                let uuidRes = await this.service.users.checkAnswerByUuid(uuid);
+                // this.ctx.logger.error(new Date(), uuidRes);
+                if (uuidRes !== null) {
+                    let answerBoxStr = uuidRes.answer;
+                    // this.ctx.logger.error(new Date(), answerBoxStr);
+                    let answerBoxList = answerBoxStr.split(',');
+                    let answerBox = [];
+                    answerBox = answerBoxList.map(item => {
+                        return +item;
+                    });
+                    let characterBox = await this.service.users.answer2Cha(answerBox);
+                    tagsList = await this.service.users.genTags(characterBox, gene);
+                }
+                else {
+                    tagsList = await this.service.users.genTags(character, gene);
+                }
                 api.data.pandaList.push({
+                    id: id,
                     gene: gene,
                     uuid: uuid,
                     createTime: createTime,
@@ -357,6 +392,7 @@ class userController extends Controller {
         let uuid = msg.uuid;
         try {
             const getPandaResult = await this.service.eosService.checkPandaByUuid(uuid);
+            let id = getPandaResult[0].id;
             let gene = getPandaResult[0].gene;
             let owner = getPandaResult[0].owner;
             let createTime = getPandaResult[0].createtime;
@@ -374,6 +410,7 @@ class userController extends Controller {
             
             const api = JSON.parse(JSON.stringify(Api.getPandaSuccessApi));
             api.data.character = character;
+            api.data.panda.id = id;
             api.data.panda.uuid = uuid;
             api.data.panda.gene = gene;
             api.data.panda.createTime = createTime;
@@ -382,7 +419,7 @@ class userController extends Controller {
         } catch (e) {
             const api = JSON.parse(JSON.stringify(Api.exceptionApi));
             api.data.error = e.message;
-            this.ctx.logger.error(new Date(), e.message);
+            this.ctx.logger.error(new Date(), openid, e.message);
             this.ctx.body = api;
             return;
         }
@@ -393,6 +430,13 @@ class userController extends Controller {
         let openid = msg.openid;
         try {
             const resultList = await this.ctx.service.users.checkPandaAccountAndAnswer(openid);
+            if (resultList.length === 0) {
+                const exceptionApi = JSON.parse(JSON.stringify(Api.exceptionApi));
+                exceptionApi.data.error = '用户不存在，请退出微信重新登录';
+                this.ctx.logger.error(new Date(), e.message, '用户不存在');
+                this.ctx.body = exceptionApi;
+                return;
+            }
             const result = resultList[0];
             // const EOSAccount = result.EOSAccount;
             const answerStr = result.answer;
@@ -425,9 +469,24 @@ class userController extends Controller {
                 let e = {message: '接收账户不存在'};
                 throw e;
             }
-            const result = await this.ctx.service.users.checkAnswerByAccount(senderEOSAccount);
-            if (result !== null) {
-                let answer = result.answer;
+            // const result = await this.ctx.service.users.checkAnswerByAccount(senderEOSAccount);
+            let answer = '';
+            const answerRes = await this.service.users.checkAnswerByUuid(uuid);
+
+            if (answerRes !== null) {
+                answer = answerRes.answer;
+            }
+            else {
+                const result = await this.ctx.service.users.checkAnswerByAccount(senderEOSAccount);
+                if (result !== null) {
+                    answer = result.answer;
+                }
+                else {
+                    let e = {message: '发送账户不存在'};
+                    throw e;
+                }
+            }
+            if (answer !== '') {
                 const api = Api.commonSuccessApi;
                 this.ctx.body = api;
                 const deleteResult = await this.ctx.service.users.deleteInBoxes(receiverEOSAccount, senderEOSAccount, uuid);
@@ -455,6 +514,13 @@ class userController extends Controller {
         let openid = msg.openid;
         try {
             const EOSAccountList = await this.ctx.service.users.checkEOSAccount(openid);
+            if (EOSAccountList.length === 0) {
+                const exceptionApi = JSON.parse(JSON.stringify(Api.exceptionApi));
+                exceptionApi.data.error = '用户不存在，请退出微信重新登录';
+                this.ctx.logger.error(new Date(), e.message);
+                this.ctx.body = exceptionApi;
+                return;
+            }
             const EOSAccount = EOSAccountList[0].EOSAccount;
             const checkResult = await this.ctx.service.users.checkInBoxes(EOSAccount);
             const api = JSON.parse(JSON.stringify(Api.getInBoxesSuccessApi));
@@ -594,16 +660,26 @@ class userController extends Controller {
         // Because we only have room for 3 entries, adding 'zorro' caused 'adam'
         // to be removed in order to make room for the new entry
         // console.log(c.toString())        // -> "angela:24 < john:26 < zorro:141"
-        cache.set('admin', 20);
-        cache.set('chen', 22);
-        cache.set('peng', 23);
-        cache.set('fei', 24);
-        console.log('cache: ', cache.toString());
-        cache.get('peng');
-        console.log(cache.toString());
-        let i = cache.get('hh');
-        console.log('i: ', i);
-        console.log(cache.toString());
+        // cache.set('admin', 20);
+        // cache.set('chen', 22);
+        // cache.set('peng', 23);
+        // cache.set('fei', 24);
+        // console.log('cache: ', cache.toString());
+        // cache.get('peng');
+        // console.log(cache.toString());
+        // let i = cache.get('hh');
+        // console.log('i: ', i);
+        // console.log(cache.toString());
+        let account = msg.account;
+        // let pubKey = msg.pubKey;
+        let start = new Date();
+        let res = await this.service.eosService.checkPanda(account);
+        let end = new Date();
+        console.log(end - start);
+
+        // await Utils.sleep(2000);
+        // const res = await this.service.eosService.getAccount(account);
+        this.ctx.body = res;
     }
 }
 

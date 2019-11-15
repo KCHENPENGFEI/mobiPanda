@@ -184,6 +184,13 @@ var KMaxCharacter = (character, k) => {
     return keys;
 }
 
+var sleep = (time)=>(new Promise((resolve)=>{
+    setTimeout(()=>{
+        resolve();
+    },time);
+}))
+
+
 module.exports = {
     characterReadable,
     rare,
@@ -192,5 +199,6 @@ module.exports = {
     generateRandomPartGeneId,
     generateRandomGeneId,
     geneToSeed,
-    KMaxCharacter
+    KMaxCharacter,
+    sleep
 }

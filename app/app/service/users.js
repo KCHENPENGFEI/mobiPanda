@@ -282,6 +282,11 @@ class userService extends Service {
         return returnResult;
     }
 
+    async checkAnswerByUuid(uuid) {
+        const checkResult = await this.app.mysql.get(inBoxesTable, { uuid: uuid });
+        return checkResult;
+    }
+
     async increasePandaQuantity(openid, quantity, time) {
         const result = await this.app.mysql.query('update tb_pandas set pandaQuantity = (pandaQuantity + ?), lastCreateTime = ? where openid = ?', [quantity, time, openid]);
         const returnResult = result.affectedRows === 1;

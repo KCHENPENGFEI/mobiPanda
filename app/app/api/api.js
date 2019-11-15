@@ -57,6 +57,7 @@ const issuePandaSuccessApi = {
             openness: 0.
         },
         panda: {
+            id: 0,
             gene: '',
             uuid: '',
             createTime: null,
@@ -112,6 +113,7 @@ const getPandaSuccessApi = {
     msg: 'get panda success',
     data: {
         panda: {
+            id: 0,
             gene: '',
             uuid: '',
             createTime: null

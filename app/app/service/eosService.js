@@ -30,7 +30,7 @@ class EosService extends Service {
             return {code: 0, msg: ''};
         }).catch(error => {
             console.log('issue panda failed, ' + error);
-            this.ctx.logger.error(new Date(), error.message);
+            this.ctx.logger.error(new Date(), to, error.message);
             return {code: -1, msg: error.message};
         });
         return result;
@@ -108,7 +108,7 @@ class EosService extends Service {
             return {code: 0, msg: ''};
         }).catch(error => {
             console.log('signup failed, ' + error.message);
-            this.ctx.logger.error(new Date(), error.message);
+            this.ctx.logger.error(new Date(), account, error.message);
             return {code: -1, msg: error.message};
         });
         // const result = await serviceConfig.api.transaction( tr => {
@@ -145,6 +145,21 @@ class EosService extends Service {
         return result;
     }
 
+    async getAccount(account) {
+        try {
+            const result = await serviceConfig.rpc.get_account(account);
+            if (result.account_name === account) {
+                return {code: 0, msg: ''};
+            }
+            else {
+                return {code: -1, msg: 'not an account'};
+            }
+        } catch (e) {
+            this.logger.error(new Date(), account, e.message, '用户不存在');
+            return {code: -1, msg: e.message};
+        }
+    }
+
     async checkPanda(account) {
         const contract = serviceConfig.admin;
         const tokenTable = serviceConfig.tokenTable;
@@ -155,9 +170,9 @@ class EosService extends Service {
             scope: contract,
             index_position: '3',
             table_key: 'owner',
-            key_type: 'name',
-            lower_bound: account,
-            upper_bound: account,
+            key_type: 'i64',
+            lower_bound: ' ' + account,
+            upper_bound: ' ' + account,
             limit: 50,
             reverse: false,
             show_payer: false
